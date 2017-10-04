@@ -1,0 +1,48 @@
+th {
+        padding: 5%;
+        vertical-align: top;
+        width: 100%;
+}
+
+
+p {
+    margin: 10px 20px;
+}
+
+textarea {
+
+resize: vertical;
+min-height: 250px;
+}
+
+
+table{
+    width:100%;
+}
+
+
+ul{
+    font-size: 16px;   
+    list-style:none;
+}
+
+.separated {
+    border-spacing: 15px  15px;
+    border-collapse: separate;
+}
+
+#Close_plot {
+	position: absolute;
+	top: 250px;
+}
+.form-group.required .control-label:after {
+  content:"*";
+  color:red;
+}
+
+#Logo {
+    //margin-top: 25px;
+    //margin-left: 20px;
+    display: inline-block;
+    float: left;
+}

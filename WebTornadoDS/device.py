@@ -1,0 +1,509 @@
+#   '$Name:  $pp`';
+#   '$Header:  $';
+# =============================================================================
+#
+# file :        device.py
+#
+# description : WebTornadoDS
+#
+# project :     TANGO Device Server
+#
+# $Author:      ctbeamlines@cells.es
+#
+# $Revision:    0.1
+
+# $Log:  $
+#
+# copyleft :    Alba Synchrotron Radiation Facility
+#               Cerdanyola del Valles
+#               Spain
+#
+#
+#         (c) - Controls group - ALBA
+# =============================================================================
+
+import json
+import os
+import socket
+import time
+
+import PyTango
+import fandango as fn
+import fandango.tango as ft
+import tornado
+from fandango import DynamicDS, DynamicDSClass
+
+from tornado_app import TornadoManagement, TangoDSSocketHandler
+import taurus
+
+class WebTornadoDS(DynamicDSClass):
+
+
+
+    device_property_list = {
+                            'AutoGenerateJSON': [PyTango.DevBoolean,
+                                                 'Auto Generate JSON files '
+                                                 'for each section', False ],
+                            'port': [PyTango.DevLong, 'Tornado Port', 8888],
+                            'WebFilesPath': [PyTango.DevString, 'Location main '
+                                                                 'WebFiles', ""],
+
+    }
+    device_property_list.update(DynamicDSClass.device_property_list)
+
+
+    cmd_list = {
+
+        'Start': [[PyTango.ArgType.DevVoid, 'Start listen detector to '
+                                            'postprocess new images.'],
+                  [PyTango.ArgType.DevVoid, '']],
+
+        'Stop': [[PyTango.ArgType.DevVoid, 'Stop.'],
+                 [PyTango.ArgType.DevVoid, '']],
+        'Run': [[PyTango.ArgType.DevVoid, 'Run the refresh data'],
+                  [PyTango.ArgType.DevVoid, ''],
+                ]
+
+    }
+    cmd_list.update(DynamicDSClass.cmd_list)
+
+    attr_list = {
+
+                  'Url':[[PyTango.ArgType.DevString,
+                              PyTango.AttrDataFormat.SCALAR,
+                              PyTango.AttrWriteType.READ]],
+                  'refresh_period': [[PyTango.ArgType.DevFloat,
+                                      PyTango.AttrDataFormat.SCALAR,
+                                      PyTango.AttrWriteType.READ_WRITE],
+                                     {
+                                        'Memorized': 'True',
+                                        'unit': 'ms',
+                                         'min_value': 100,
+                                    }]
+                 }
+
+    # #attr_list = {
+    #
+    #             'Folder': [[PyTango.ArgType.DevString,
+    #                       PyTango.AttrDataFormat.SCALAR,
+    #                       PyTango.AttrWriteType.READ_WRITE]],
+    #             }
+    attr_list.update(DynamicDSClass.attr_list)
+
+    def __init__(self, name):
+        print 'In WebTornadoDS.__init__'
+        super(WebTornadoDS, self).__init__(name)
+        self.set_type("WebTornadoDS")
+
+
+class WebTornadoDS4Impl(DynamicDS):
+
+    JSON_FOLDER = 'JSONfiles/'
+
+    EMPTY_ATTR = {
+        'alarms': [],
+        'arch_event': [],
+        'ch_event': [],
+        'color': 'Grey',
+        'data_format': 'SCALAR',
+        'data_type': 'DevDouble',
+        'database': '',
+        'description': '',
+        'device': '',
+        'display_unit': '',
+        'format': '',
+        'label': '----',
+        'max_alarm': '',
+        'min_alarm': '',
+        'model': '',
+        'name': '---',
+        'polling': '',
+        'quality': 'ATTR_INVALID',
+        'standard_unit': '',
+        'string': '----',
+        'time': time.time(),
+        'unit': '',
+        'value': None,
+        'writable': 'READ',
+    }
+
+    # ------------------------------------------------------------------
+    #   Device constructor
+    # ------------------------------------------------------------------
+    def __init__(self, cl, name):
+        DynamicDS.__init__(self, cl, name)
+        self.info_stream('In WebTornadoDS.__init__')
+        WebTornadoDS4Impl.init_device(self)
+        self.set_state(PyTango.DevState.ON)
+
+
+    # ------------------------------------------------------------------
+    #   Device destructor
+    # ------------------------------------------------------------------
+    def delete_device(self):
+        self.info_stream('In %s::delete_device()' % self.get_name())
+
+        try:
+            self.Stop()
+        except Exception as e:
+            print e
+        self.info_stream('Leaving %s::delete_device()' % self.get_name())
+
+    # ------------------------------------------------------------------
+    #   Device initialization
+    # ------------------------------------------------------------------
+    def init_device(self):
+        self.info_stream('In %s::init_device()' % self.get_name())
+        self.get_device_properties(self.get_device_class())
+
+        DynamicDS.init_device(self)
+        self.tornado = TornadoManagement(port=self.port, parent=self)
+        self.url = socket.gethostname() + ':' + str(self.port)
+        self._data_dict = {}
+        self.refresh_period = 3000
+        self.Start()
+
+
+    def Init(self):
+        self.info_stream('In %s::Init()' % self.get_name())
+        self.Stop()
+        self.Start()
+    # ------------------------------------------------------------------
+    #   State machine implementation
+    # ------------------------------------------------------------------
+    def state_machine(self):
+        if self.tornado.isRunning():
+            self.set_state(PyTango.DevState.RUNNING)
+            self.set_status('Tornado is Running')
+
+        else:
+            self.set_state(PyTango.DevState.ON)
+            self.set_status('Tornado is Stopped')
+
+    # ------------------------------------------------------------------
+    #   Always executed hook method
+    # ------------------------------------------------------------------
+    def always_executed_hook(self):
+        self.debug_stream('In %s::always_executed_hook()' % self.get_name())
+        DynamicDS.always_executed_hook(self)
+        self.state_machine()
+
+    # ------------------------------------------------------------------
+    #   Cmd command
+    # ------------------------------------------------------------------
+    def Start(self):
+        self.info_stream('In %s::Start()' % self.get_name())
+        if not self.tornado.isRunning():
+            self.tornado.start()
+
+    def Stop(self):
+        self.info_stream('In %s::Stop()' % self.get_name())
+        self.set_state(PyTango.DevState.ON)
+        self.set_status('Status is ON')
+        self.tornado.stop()
+
+    def GetAttributes(self):
+        print dir(self)
+        print self.dyn_attrs
+        print self.dyn_values
+        print self.dyn_comms
+
+
+    # ------------------------------------------------------------------
+    #   read Attr attribute
+    # ------------------------------------------------------------------
+    def read_Folder(self, the_att):
+        self.info_stream('%s' % self.Num_points)
+        the_att.set_value(self.Folder)
+
+    def write_Folder(self, attr):
+        val = attr.get_write_value()
+        self.Folder = val
+
+    def read_refresh_period(self, the_att):
+        self.info_stream('%s' % self.refresh_period)
+        U = PyTango.Util.instance()
+        admin = U.get_dserver_device()
+        val =  self.get_command_poll_period('Run')
+        self.refresh_period = val
+        the_att.set_value(self.refresh_period)
+
+    def write_refresh_period(self, attr):
+        val = attr.get_write_value()
+        self.refresh_period = val
+        self.poll_command('Run', int(self.refresh_period))
+
+    def getStructureConfig(self):
+        try:
+            p = self._db.get_device_property(self.get_name(),['StructureConfig'])[
+                'StructureConfig'][0]
+        except:
+            p = '{}'
+
+        return p
+
+    def setStructureConfig(self, conf):
+        self._db.put_device_property(self.get_name(),
+                                     {'StructureConfig':conf})
+
+    def getSections(self):
+        try:
+            p = self._db.get_device_property(self.get_name(),['StructureConfig'])['StructureConfig'][0]
+        except:
+            return []
+        json_acceptable_string = p.replace("'", "\"")
+        p = json.loads(json_acceptable_string)
+        return p.keys()
+
+    def needJSON(self):
+        try:
+            self.AutoGenerateJSON = self._db.get_device_property(
+                self.get_name(),['AutoGenerateJSON'])['AutoGenerateJSON'][0]
+            if self.AutoGenerateJSON == 'False':
+                self.AutoGenerateJSON = False
+
+        except:
+            self._db.put_device_property(self.get_name(),
+                                         {'AutoGenerateJSON': self.AutoGenerateJSON})
+            pass
+        return self.AutoGenerateJSON
+        
+    def readAttributesFromSection(self, section):
+        attrs = []
+        self._data_dict = {}
+
+        # Read the current configuration.
+        config = self.getStructureConfig()    
+        json_acceptable_string = config.replace("'", "\"")
+        config = json.loads(json_acceptable_string)   
+        if section in config:
+            for att in config[section]['Data']: 
+                attrs.append(att.lower())
+        return attrs    
+
+    def Run(self):
+        report_msg = False
+        try:
+            waiters = len(TangoDSSocketHandler.waiters)
+            if self.needJSON() or waiters >= 1:
+
+                sections = self.getSections()
+
+                for section in sections:
+                    att_vals = []
+                    try:
+                        att_vals = self.read_attributes_values(section)
+                        jsondata = {}
+                        jsondata['command'] = 'update'
+                        jsondata['data'] = att_vals
+                        jsondata['section'] = section
+                        jsondata['updatetime'] = time.strftime("%Y-%m-%d %H:%M:%S",
+                                                               time.localtime())
+                    except Exception as e:
+                        print e
+
+                    # check if the data is empty:
+                    if len(att_vals) != 0:
+                        if self.AutoGenerateJSON:
+                            file = self.JSON_FOLDER + section + ".json"
+                            self.attributes2json(file, att_vals)
+                            # Sent generated data to clients
+                        for waiter in TangoDSSocketHandler.waiters:
+                            try:
+                                waiter.write_message(jsondata)
+                            except:
+                                print "Error sending message to waiters...."
+            else:
+                if not report_msg:
+                    print "WEB Data file  generation Stopped!!!...."
+                    report_msg = True
+        except Exception as e:
+            print e
+
+    def newClient(self, client):
+        json_data = {}
+
+        # Config Json as a config
+        json_data['command'] = 'config'
+
+        # Send the section Confit at first time
+        conf = self.getStructureConfig()
+
+        # check if the property is empty
+        if conf != '':
+            json_data['config'] = json.loads(conf)
+        else:
+            json_data['config'] = {}
+        # Read Current Attr Values
+        att_values = self.read_attributes_values()
+        json_data['data'] = att_values
+        json_data['host'] = tornado.httpserver.socket.gethostname()
+        # Send Package
+        client.write_message(json_data)
+        client_name = client.request.remote_ip
+
+        print "Main data contents refresh in client " + str(client_name)
+
+    def read_attributes_values(self, filter_by_section=None):
+        # Check current config
+
+        attrs = []
+        self._data_dict = {}
+
+        # Read the current configuration.
+        config = self.getStructureConfig()
+        json_acceptable_string = config.replace("'", "\"")
+        config = json.loads(json_acceptable_string)
+
+        sections_rel = {}
+
+        # Get Sections info
+        if filter_by_section:
+            sections = [filter_by_section]
+        else:
+            sections = config.keys()
+
+        for section in sections:
+            for att in config[section]['Data']:
+                att = att.lower()
+                attrs.append(att)
+                sections_rel[att] = section
+
+        # Add info in a dict for each attribute
+        for full_name in attrs:
+
+            full_name = str(full_name).lower()
+            self._data_dict[full_name] = {}
+            
+            try:
+                # Read the Current Value / config
+                import fandango.callbacks
+
+                #a = fandango.callbacks.EventSource('test',
+                #    force_polling=True,polling_period=3000.).read()
+                import fandango.tango as ft
+                #model = ft.parse_tango_model(full_name)
+                #my_host = ft.get_tango_host().split(':')[0].split('.')[0]
+                #self.info(' reading %s / %s' % (model.device,model.attribute) )
+                a = taurus.Attribute(full_name)
+                dev_name = a.getParentObj().getNormalName()
+                if dev_name == self.get_name():
+                    a = ft.read_internal_attribute(self,a.name).read()
+                else:
+                    a = PyTango.AttributeProxy(full_name).read()
+
+                self.info(' reading %s, done' % full_name)
+                #self._data_dict[full_name]['data_format'] = str(a.data_format)
+
+                if fandango.isSequence(a.value):
+                    value = a.value.tolist()
+                    self._data_dict[full_name]['data_format'] = "SPECTRUM"
+                else:
+                    value = a.value
+                    self._data_dict[full_name]['data_format'] = "SCALAR"
+
+                self._data_dict[full_name]['value'] = value
+                self._data_dict[full_name]['quality'] = str(a.quality)
+                self._data_dict[full_name]['full_name'] = full_name
+                self._data_dict[full_name]['label'] = str(a.name)
+                self._data_dict[full_name]['section'] = sections_rel[full_name]
+            except Exception as e:
+                # return an error for this attribute in Exception case
+                self._data_dict[full_name]['data_format'] = "SCALAR"
+                self._data_dict[full_name]['value'] = "Attr not found"
+                self._data_dict[full_name]['quality'] = "ATTR_NOT_FOUND"
+                self._data_dict[full_name]['full_name'] = full_name
+                self._data_dict[full_name]['label'] = full_name
+                self._data_dict[full_name]['section'] = sections_rel[full_name]
+                print('%s failed!'%full_name)
+                print e
+
+
+        self.last_values_update = time.time()
+        return self._data_dict
+
+
+    @PyTango.DebugIt()
+    def read_Url(self, the_att):
+        self.info_stream("read_url")
+        the_att.set_value(self.url)
+
+
+    def attrs2dict(self, attrs,keep=False,log=False):
+        vals = {}
+        failed = []
+        devs = fn.dicts.defaultdict(list)
+        [devs[a.rsplit('/',1)[0]].append(a) for a in attrs]
+
+        for d,attrs in devs.items():
+            if not ft.check_device(d):
+              print('%s device is not running!'%d)
+              for t in attrs:
+                vals[t] = EMPTY_ATTR
+                vals[t]['model'] = t
+                vals[t]['label'] = vals[t]['name'] = t.rsplit('/')[-1]
+                vals[t]['device'] = d
+            else:
+              for t in attrs:
+                try:
+                  v = ft.export_attribute_to_dict(t)
+                  if log: print(v['model'],v['string'])
+                  if v['value'] is None:
+                    v['color'] = 'Grey'
+                    v['string'] = '...'
+                  elif fn.isSequence(v['string']):
+                    sep = '\n' if v['data_type'] == 'DevString' else ','
+                    v['string'] = sep.join(v['string'])
+                  v['string'] = unicode(v['string'],'latin-1')
+                  v['tooltip'] = v['model'] + ':' + v['string']
+                  try:
+                    json.dumps(v)
+                  except:
+                    if log: print('json.dumps(%s) failed'%t)
+                    if fn.isSequence(v['value']):
+                      v['value'] = list(v['value'])
+                    if fn.isBool(v['value']):
+                      v['value'] = bool(v['value'])
+                  vals[v['model']] = v
+                except:
+                  if log:
+                    print('export_attribute_to_dict(%s) failed'%t)
+                    #
+                  vals[t] = None
+                  failed.append(t)
+        if failed:
+            print('%d failed attributes!: %s'%(len(failed),' '.join(failed)))
+        return vals
+
+    def attributes2json(self, filename,attrs,keep=False,log=False):
+        if not fn.isMapping(attrs):
+          attrs = self.attrs2dict(attrs,keep=keep,log=log)
+        try:
+          if not os.path.exists(os.path.dirname(filename)):
+              try:
+                  os.makedirs(os.path.dirname(filename))
+              except OSError as exc: # Guard against race condition
+                  if exc.errno != errno.EEXIST:
+                      raise
+          json.dump(attrs,open(filename,'w'),encoding='latin-1')
+          print('%d attributes written to %s'%(len(attrs),filename))
+        except Exception,e:
+          print('attributes2json(%s) failed!'%filename)
+          failed = 0
+          for k,v in attrs.items():
+            try:
+              json.dumps({k:v},encoding='latin-1')
+            except Exception,ee:
+              failed = 1
+              print((k,'cannot be parsed: ',ee))
+          if not failed:
+              raise e
+        return attrs
+
+
+        
+
+
+
+
+        

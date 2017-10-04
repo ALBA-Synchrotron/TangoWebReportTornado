@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head> 
+<meta charset="utf-8"/>
+<meta http-equiv="refresh" content="3600" />
+<title>Machine Status</title>
+<link rel="icon" type="image/png" href="{{ static_url('icon.png') }} " />
+<link rel="stylesheet" href="{{ static_url('Style_Machine.css') }}">
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.1/jquery.min.js"></script>
+<link rel="stylesheet" type="text/css" hrf="{{ static_url('jqplot/jquery.jqplot.min.css') }}" />
+<script type="text/javascript" src="{{ static_url('jqplot/jquery.jqplot.js')}}"></script>
+<link rel="stylesheet" type="text/css" hrf="{{ static_url('jquery-ui/css/smoothness/jquery-ui.min.css' )}}" />
+<script type="text/javascript" src="{{ static_url('jqplot/plugins/jqplot.canvasTextRenderer.js') }}"></script>
+<script type="text/javascript" src="{{ static_url('jqplot/plugins/jqplot.canvasAxisTickRenderer.js') }}"></script>
+<script type="text/javascript" src="{{ static_url('jqplot/plugins/jqplot.categoryAxisRenderer.js') }}"></script>
+<script type="text/javascript" src="{{ static_url('jqplot/plugins/jqplot.dateAxisRenderer.js') }}"></script>
+<script type="text/javascript" src="{{ static_url('jqplot/plugins/jqplot.canvasAxisLabelRenderer.js') }}"></script>
+<link rel="stylesheet" type="text/css" href="{{ static_url('jqplot/jquery.jqplot.css') }}" />
+<script type="text/javascript" src="{{ static_url('machine.js') }}"></script>
+
+<body>
+<table class="tg" cellpadding="0px" cellspacing="0px" >
+  <tr >
+    <td class="tg-i0og" colspan="2" height="45%">
+        <table class="tg_into" width="100%" height="100%" cellspacing="20px" >
+            <tr cellspacing="50px">
+                <th class="tg-031e" id= "firstwhitebox" colspan="3" height="50%">
+                  <table class="tg" width="100%" height="100%">
+                    <tr>
+                      <th class="Current"><div id="current"></div></th>
+                      <th class="CurrentValue"><div id="currentvalue"></div></th>
+                    </tr>
+                  </table>
+                </th>
+            </tr>
+            <tr>
+                <th class="LifeTime"><div id="lifetime"></div></th>
+                <td class="LifeTimeValue"><div id="lifetimevalue" ></div></td>
+                <td class="Product"><div id="product"></div></td>
+            </tr>
+            <tr >
+                <th class="Pressure"><div id="pressure"></div></th>
+                <td class="PressureValue"><div id="pressurevalue"></div></td>
+                <td class="ImatgeLogo"><img src="{{ static_url('AlbaLogo.png') }}" ></td>
+            </tr>
+        </table>
+    </td>
+    <td class="tg-i0og" rowspan="2" width="30%" height="90%">
+              <table class="BeamLine">
+                <tr>
+                  <th class="NameBeam" rowspan="2"><div id="MIRAS"></div></th>
+                  <th class="FEName"><div id="FI03"></div></th>
+                  <th class="IDName"><div id="FI03POS"></div></th>
+                </tr>
+                <tr>
+                  <td class="FEvalue"><div id="FI03value"></div></td>
+                  <td class="IDvalue"><div id="FI03POSvalue"></div></td>
+                </tr>
+              </table>
+            <hr>
+              <table class="BeamLine">
+            <tr>
+            <th class="NameBeam" rowspan="2"><div id="MSPD"></div></th>
+            <th class="FEName"><div id="FE04"></div></th>
+            <th class="IDName"><div id="SCW01"></div></th>
+            </tr>
+          <tr style= "padding:5px">
+            <td class="FEvalue"><div id="FE04value"></div></td>
+            <td class="IDvalue"><div id="SCW01value"></div></td>
+          </tr>
+        </table>
+        <hr>
+         <table class="BeamLine">
+          <tr>
+            <th class="NameBeam" rowspan="2"><div id="MISTRAL"></div></th>
+            <th class="FEName"><div id="FE09"></div></th>
+            <th class="IDName"><div id="BEND"></div></th>
+          </tr>
+          <tr>
+            <td class="FEvalue"><div id="FE09value"></div></td>
+            <th class="IDvalue"><div id="BEND" ></div></th>
+          </tr>
+        </table>
+        <hr>
+         <table class="BeamLine">
+          <tr>
+            <th class="NameBeam" rowspan="2"><div id="NCD"></div></th>
+            <th class="FEName"><div id="FE11"></div></th>
+            <th class="IDName"><div id="IVU21"></div></th>
+          </tr>
+          <tr>
+            <td class="FEvalue"><div id="FE11value" ></div></td>
+            <td class="IDvalue"><div id="IVU21value"></div></td>
+          </tr>
+          </table>
+          <hr>
+           <table class="BeamLine">
+          <tr>
+            <th class="NameBeam" rowspan="2"><div id="XALOC"></div></th>
+            <th class="FEName"><div id="FE13"></div></th>
+            <th class="IDName"><div id="IVU21_2"></div></th>
+          </tr>
+          <tr>
+            <td class="FEvalue" id="FEvalue"><div id="FE13value"></div></td>
+            <td class="IDvalue"><div id="IVU21_2value" ></div></td>
+          </tr>
+        </table>
+        <hr>
+         <table class="BeamLine">
+          <tr>
+            <th class="NameBeam" rowspan="2"><div id="CLAESS"></div></th>
+            <th class="FEName"><div id="FE22"></div></th>
+            <th class="IDName"><div id="MPW80"></div></th>
+          </tr>
+          <tr>
+            <td class="FEvalue"><div id="FE22value"></div></td>
+            <td class="IDvalue"><div id="MPW80value"></div></td>
+          </tr>
+        </table>
+        <hr>
+         <table class="BeamLine">
+          <tr>
+            <th class="NameBeam" rowspan="2"><div id="CIRCE"></div></th>
+            <th class="FEName"><div id="FE24"></div></th>
+            <th class="IDName"><div id="EU62"></div></th>
+          </tr>
+          <tr>
+            <td class="FEvalue"><div id="FE24value"></div></td>
+            <td class="IDvalue"><div id="EU62value"></div></td>
+          </tr>
+        </table>
+        <hr>
+          <table class="BeamLine">
+          <tr>
+            <th class="NameBeam" rowspan="2"><div id="BOREAS"></div></th>
+            <th class="FEName"><div id="FE29"></div></th>
+            <th class="IDName"><div id="EU71"></div></th>
+          </tr>
+          <tr>
+            <td class="FEvalue"><div id="FE29value"></div></td>
+            <td class="IDvalue"><div id="EU71value"></div></td>
+          </tr>
+        </table>
+        <hr>
+    </td>
+  </tr>
+  <tr>
+    <td class="tg-fefd" colspan="2" height="45%" width="50%" >
+        <div id="chart3" ></div>
+    </td>
+  </tr>
+  <tr>
+    <td class="tg-fefd" colspan="3" height="10%">
+        <table class="tState" width="100%" height="100%">
+          <tr>
+            <td class="Data"><div id="data"></div></td>
+            <td class="Message"><div id="usertext"></div></td>
+          </tr>
+        </table>
+    </td>
+  </tr>
+</table>
+</body>
+</html>
