@@ -1,26 +1,26 @@
-#   '$Name:  $pp`';
-#   '$Header:  $';
-# =============================================================================
+#*********************************************************************
+# ESP8266ARS: Python project for a ALBA Remote Sensors base on ESP8266.
 #
-# file :        device.py
+# Author(s): Roberto J. Homs Puron <rhoms@cells.es>,
+#            Alberto Rubio Garcia <arubio@cells.es>
+#            Sergio Astorga Sanchez <sastorga@cells.es>
 #
-# description : WebTornadoDS
+# Copyright (C) 2017, CELLS / ALBA Synchrotron
 #
-# project :     TANGO Device Server
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
 #
-# $Author:      ctbeamlines@cells.es
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
 #
-# $Revision:    0.1
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
 
-# $Log:  $
-#
-# copyleft :    Alba Synchrotron Radiation Facility
-#               Cerdanyola del Valles
-#               Spain
-#
-#
-#         (c) - Controls group - ALBA
-# =============================================================================
 
 import json
 import os
