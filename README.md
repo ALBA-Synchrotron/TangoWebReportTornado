@@ -3,7 +3,7 @@ TornadoWebReportsTango Device Server
 
 Author(s): Daniel Roldan Ballesteros (droldan@cells.es)
 
-Description: Tango device server to manage the a tornado Web Server and generate
+Description: Tango device server to manage a tornado Web Server and generate
  web reports from Tango Attributes
 
 PROPERTIES
