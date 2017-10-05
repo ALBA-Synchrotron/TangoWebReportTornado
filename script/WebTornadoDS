@@ -1,9 +1,0 @@
-#!/usr/bin/env python
-from server import run
-import sys
-
-# This is the launcher created manually to run the DS when it is not installed
-# on the system. If the module is installed the entry_point sintax will create
-# the launcher script.
-if __name__ == "__main__":
-    run(sys.argv)
