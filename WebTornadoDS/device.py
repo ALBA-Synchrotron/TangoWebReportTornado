@@ -35,6 +35,9 @@ from fandango import DynamicDS, DynamicDSClass
 
 from tornado_app import TornadoManagement, TangoDSSocketHandler
 import taurus
+from matplotlib import cm
+import numpy as np
+from PIL import Image
 
 class WebTornadoDS(DynamicDSClass):
 
@@ -47,6 +50,13 @@ class WebTornadoDS(DynamicDSClass):
                             'port': [PyTango.DevLong, 'Tornado Port', 8888],
                             'WebFilesPath': [PyTango.DevString, 'Location main '
                                                                  'WebFiles', ""],
+
+                            'extraJSONpath': [PyTango.DevString, 'extra '
+                                                                 'location '
+                                                                 'to save '
+                                                                 'JSON '
+                                                                 'files',
+                                              ""]
 
     }
     device_property_list.update(DynamicDSClass.device_property_list)
@@ -79,8 +89,14 @@ class WebTornadoDS(DynamicDSClass):
                                         'Memorized': 'True',
                                         'unit': 'ms',
                                          'min_value': 100,
-                                    }]
-                 }
+                                    }],
+                  'extraJSONpath':[[PyTango.ArgType.DevString,
+                              PyTango.AttrDataFormat.SCALAR,
+                              PyTango.AttrWriteType.READ_WRITE],
+                                    {
+                                    'Memorized': 'True',
+                                    }],
+     }
 
     # #attr_list = {
     #
@@ -157,10 +173,12 @@ class WebTornadoDS4Impl(DynamicDS):
         self.get_device_properties(self.get_device_class())
 
         DynamicDS.init_device(self)
+
         self.tornado = TornadoManagement(port=self.port, parent=self)
         self.url = socket.gethostname() + ':' + str(self.port)
         self._data_dict = {}
         self.refresh_period = 3000
+        self.extraJSONpath = ""
         self.Start()
 
 
@@ -194,7 +212,10 @@ class WebTornadoDS4Impl(DynamicDS):
     def Start(self):
         self.info_stream('In %s::Start()' % self.get_name())
         if not self.tornado.isRunning():
-            self.tornado.start()
+            try:
+                self.tornado.start()
+            except Exception as e:
+                self.info_stream("Error on start Tornado: %r"%e)
 
     def Stop(self):
         self.info_stream('In %s::Stop()' % self.get_name())
@@ -212,13 +233,6 @@ class WebTornadoDS4Impl(DynamicDS):
     # ------------------------------------------------------------------
     #   read Attr attribute
     # ------------------------------------------------------------------
-    def read_Folder(self, the_att):
-        self.info_stream('%s' % self.Num_points)
-        the_att.set_value(self.Folder)
-
-    def write_Folder(self, attr):
-        val = attr.get_write_value()
-        self.Folder = val
 
     def read_refresh_period(self, the_att):
         self.info_stream('%s' % self.refresh_period)
@@ -232,6 +246,14 @@ class WebTornadoDS4Impl(DynamicDS):
         val = attr.get_write_value()
         self.refresh_period = val
         self.poll_command('Run', int(self.refresh_period))
+
+    def read_extraJSONpath(self, the_att):
+        self.info_stream('%s' % self.extraJSONpath)
+        the_att.set_value(self.extraJSONpath)
+
+    def write_extraJSONpath(self, attr):
+        val = attr.get_write_value()
+        self.extraJSONpath = val
 
     def getStructureConfig(self):
         try:
@@ -264,8 +286,17 @@ class WebTornadoDS4Impl(DynamicDS):
 
         except:
             self._db.put_device_property(self.get_name(),
-                                         {'AutoGenerateJSON': self.AutoGenerateJSON})
+                                         {'extraJSONpath': self.AutoGenerateJSON})
             pass
+
+        try:
+            self.extraJSONpath = self._db.get_device_property(
+                self.get_name(), ['extraJSONpath'])['extraJSONpath'][0]
+        except:
+            self._db.put_device_property(self.get_name(),
+                                         {
+                                             'AutoGenerateJSON': self.AutoGenerateJSON
+                                         })
         return self.AutoGenerateJSON
         
     def readAttributesFromSection(self, section):
@@ -305,8 +336,18 @@ class WebTornadoDS4Impl(DynamicDS):
                     # check if the data is empty:
                     if len(att_vals) != 0:
                         if self.AutoGenerateJSON:
-                            file = self.JSON_FOLDER + section + ".json"
+                            filename = section + ".json"
+                            file = os.path.join(self.JSON_FOLDER, filename)
                             self.attributes2json(file, att_vals)
+                            try:
+                                if self.extraJSONpath != "":
+                                    file = os.path.join(self.extraJSONpath,
+                                                    filename)
+                                    self.attributes2json(file, att_vals)
+                            except Exception as e:
+                                msg ="Error on write JSON to extraJSONpath: " \
+                                     "%r"%e
+                                print msg
                             # Sent generated data to clients
                         for waiter in TangoDSSocketHandler.waiters:
                             try:
@@ -395,11 +436,28 @@ class WebTornadoDS4Impl(DynamicDS):
                 self.info(' reading %s, done' % full_name)
                 #self._data_dict[full_name]['data_format'] = str(a.data_format)
 
-                if fandango.isSequence(a.value):
-                    value = a.value.tolist()
+                if a.data_format == PyTango.AttrDataFormat.IMAGE:
+                    self._data_dict[full_name]['data_format'] = "IMAGE"
+                    # VALUE should be the image path
+                    # value = array2Image(value, 'jpeg')
+                    # TODO: default image
+                    imagename = 'template.jpg'
+                    if self.AutoGenerateJSON:
+                        imagename = self.createImage(a.value, full_name)
+                    value = imagename
+
+                elif fandango.isSequence(a.value):
+                    if type(a.value) is tuple:
+                        value = list(a.value)
+                    else:
+                        value = a.value.tolist()
                     self._data_dict[full_name]['data_format'] = "SPECTRUM"
                 else:
-                    value = a.value
+                    # Check Tango States
+                    if a.value in PyTango.DevState.values:
+                        value = str(a.value)
+                    else:
+                        value = a.value
                     self._data_dict[full_name]['data_format'] = "SCALAR"
 
                 self._data_dict[full_name]['value'] = value
@@ -483,8 +541,7 @@ class WebTornadoDS4Impl(DynamicDS):
               try:
                   os.makedirs(os.path.dirname(filename))
               except OSError as exc: # Guard against race condition
-                  if exc.errno != errno.EEXIST:
-                      raise
+                  raise
           json.dump(attrs,open(filename,'w'),encoding='latin-1')
           print('%d attributes written to %s'%(len(attrs),filename))
         except Exception,e:
@@ -503,7 +560,26 @@ class WebTornadoDS4Impl(DynamicDS):
 
         
 
+    def createImage(self, value, full_name):
+        map = cm.get_cmap('jet')
+        im = map(value)
+        im = np.uint8(im * 255)
+        img = Image.fromarray(im)
 
+        imagename = full_name.replace('/','_')
+        imagename =  imagename + ".jpg"
+        imagenamepath = os.path.join(self.JSON_FOLDER, imagename)
 
+        img.save(imagenamepath)
 
-        
+        try:
+            if self.extraJSONpath != "":
+                imagenamepathext = os.path.join(self.extraJSONpath,
+                                    imagename)
+                img.save(imagenamepathext)
+        except Exception as e:
+            msg = "Error on write Image to extraJSONpath: " \
+                  "%r" % e
+            print msg
+
+        return imagename
