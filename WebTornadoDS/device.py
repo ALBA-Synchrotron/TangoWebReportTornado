@@ -26,7 +26,7 @@ import json
 import os
 import socket
 import time
-
+import datetime
 import PyTango
 import fandango as fn
 import fandango.tango as ft
@@ -38,6 +38,7 @@ import taurus
 from matplotlib import cm
 import numpy as np
 from PIL import Image
+import shutil
 
 class WebTornadoDS(DynamicDSClass):
 
@@ -337,13 +338,23 @@ class WebTornadoDS4Impl(DynamicDS):
                     if len(att_vals) != 0:
                         if self.AutoGenerateJSON:
                             filename = section + ".json"
-                            file = os.path.join(self.JSON_FOLDER, filename)
-                            self.attributes2json(file, att_vals)
+                            self.attributes2json(self.JSON_FOLDER,
+                                                 filename, att_vals)
                             try:
                                 if self.extraJSONpath != "":
-                                    file = os.path.join(self.extraJSONpath,
-                                                    filename)
-                                    self.attributes2json(file, att_vals)
+                                    filename = "data.json"
+                                    folder = os.path.join(self.extraJSONpath,
+                                                        section)
+
+                                    val = {}
+                                    val['data'] = att_vals
+                                    time_now = datetime.datetime.fromtimestamp(
+                                            time.time()).strftime('%Y-%m-%d %H:%M:%S')
+                                    val['timestamp'] = time_now
+                                    val['refresh_period'] = self.refresh_period
+                                    val['section'] = section
+                                    self.attributes2json(folder,
+                                                         filename, val)
                             except Exception as e:
                                 msg ="Error on write JSON to extraJSONpath: " \
                                      "%r"%e
@@ -443,7 +454,8 @@ class WebTornadoDS4Impl(DynamicDS):
                     # TODO: default image
                     imagename = 'template.jpg'
                     if self.AutoGenerateJSON:
-                        imagename = self.createImage(a.value, full_name)
+                        imagename = self.createImage(a.value, full_name,
+                                                     section)
                     value = imagename
 
                 elif fandango.isSequence(a.value):
@@ -533,19 +545,23 @@ class WebTornadoDS4Impl(DynamicDS):
             print('%d failed attributes!: %s'%(len(failed),' '.join(failed)))
         return vals
 
-    def attributes2json(self, filename,attrs,keep=False,log=False):
+    def attributes2json(self, folder, filename, attrs,keep=False,log=False):
+        file = os.path.join(folder, filename)
+
         if not fn.isMapping(attrs):
           attrs = self.attrs2dict(attrs,keep=keep,log=log)
         try:
-          if not os.path.exists(os.path.dirname(filename)):
+          if not os.path.exists(os.path.dirname(file)):
               try:
-                  os.makedirs(os.path.dirname(filename))
+                  os.makedirs(os.path.dirname(file))
               except OSError as exc: # Guard against race condition
                   raise
-          json.dump(attrs,open(filename,'w'),encoding='latin-1')
-          print('%d attributes written to %s'%(len(attrs),filename))
+          json.dump(attrs,open(file,'w'),encoding='latin-1')
+          html_file = os.path.join(folder, 'index.html')
+          shutil.copy('templates/index_section.html', html_file)
+          print('%d attributes written to %s'%(len(attrs),file))
         except Exception,e:
-          print('attributes2json(%s) failed!'%filename)
+          print('attributes2json(%s) failed!'%file)
           failed = 0
           for k,v in attrs.items():
             try:
@@ -560,7 +576,7 @@ class WebTornadoDS4Impl(DynamicDS):
 
         
 
-    def createImage(self, value, full_name):
+    def createImage(self, value, full_name, section=None):
         map = cm.get_cmap('jet')
         im = map(value)
         im = np.uint8(im * 255)
@@ -568,13 +584,18 @@ class WebTornadoDS4Impl(DynamicDS):
 
         imagename = full_name.replace('/','_')
         imagename =  imagename + ".jpg"
-        imagenamepath = os.path.join(self.JSON_FOLDER, imagename)
+
+        imagenamepath = os.path.join(self.extraJSONpath, imagename)
 
         img.save(imagenamepath)
 
         try:
             if self.extraJSONpath != "":
-                imagenamepathext = os.path.join(self.extraJSONpath,
+                folder = self.extraJSONpath
+                if section:
+                    folder = os.path.join(self.JSON_FOLDER, section)
+
+                imagenamepathext = os.path.join(folder,
                                     imagename)
                 img.save(imagenamepathext)
         except Exception as e:

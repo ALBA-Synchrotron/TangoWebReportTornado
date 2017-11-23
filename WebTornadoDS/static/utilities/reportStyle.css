@@ -1,5 +1,123 @@
+@media all and (max-width: 1200px) { /* screen size until 1200px */
+    th {
+        font-size: 1em; /* 1.5x default size */
+    }
+    grayAttrName{
+        font-size: 1em;
+    }
+    .alert{
+        font-size: 1em;
+    }
+}
+
+ @media all and (min-width: 960px){
+        .row_elem{
+            float: left;
+            width: 25%;
+        }
+        .alert{
+            float: left;
+            width: 75%;
+        }
+
+}
+@media all and (max-width: 1000px) { /* screen size until 1000px */
+    th {
+        font-size: 1em; /* 1.2x default size */
+
+    }
+    grayAttrName{
+        font-size: 1em;
+    }
+
+    .row_elem{
+        float: left;
+        width: 100%;
+    }
+    .alert{
+        float: left;
+        width: 100%;
+        font-size: 1em;
+
+    }
+
+
+}
+@media all and (max-width: 500px) { /* screen size until 500px */
+    th {
+        font-size: 0.8em; /* 0.8x default size */
+    }
+
+    grayAttrName{
+        font-size: 0.75em;
+    }
+
+    .alert{
+        font-size: 0.8em;
+    }
+    .row_elem{
+        float: left;
+        width: 100%;
+    }
+    .alert{
+        float: left;
+        width: 100%;
+        font-size: 1em;
+
+    }
+
+
+}
+
+@media all and (max-width: 400px) { /* screen size until 500px */
+    th {
+        font-size: 0.7em; /* 0.8x default size */
+    }
+    grayAttrName{
+        font-size: 0.65em;
+    }
+
+    .alert{
+        font-size: 0.7em;
+    }
+
+        .row_elem{
+        float: left;
+        width: 100%;
+    }
+    .alert{
+        float: left;
+        width: 100%;
+        font-size: 1em;
+
+    }
+
+}
+@media all and (max-width: 300px) { /* screen size until 500px */
+    th {
+        font-size: 0.6em; /* 0.8x default size */
+    }
+    .row_elem{
+        float: left;
+        width: 100%;
+    }
+    .alert{
+        float: left;
+        width: 100%;
+        font-size: 1em;
+
+    }
+
+}
+    grayAttrName{
+        font-size: 0.55em;
+    }
+
+
+
+
 th {
-        padding: 5%;
+        /*padding: 5%;*/
         vertical-align: top;
         width: 100%;
 }
@@ -29,6 +147,7 @@ ul{
 .separated {
     border-spacing: 15px  15px;
     border-collapse: separate;
+    /*font-size: 3vw;*/
 }
 
 #Close_plot {
@@ -46,3 +165,5 @@ ul{
     display: inline-block;
     float: left;
 }
+
+

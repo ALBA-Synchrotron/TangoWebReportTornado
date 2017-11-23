@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+<!--<link rel="shortcut icon" type="image/png" href="/static/favicon.png"/>-->
+
+<!--<link rel="stylesheet" href="/static/utilities/reportStyle.css"/>-->
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.1/jquery.min.js"></script>
+<link rel="stylesheet"
+      href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" integrity="sha384-1q8mTJOASx8j1Au+a5WDVnPi2lkFfwwEAa8hDDdjZlpLegxhjVME1fgjWPGmkzs7"
+crossorigin="anonymous"
+
+      />
+<script src="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js"></script>
+
+<!--<script src="/static/utilities/ws.js"></script>-->
+<!--<script type="text/javascript" src="/static/utilities/WebFunctions.js" sync="sync"></script>-->
+<script src="http://www.chartjs.org/dist/2.7.1/Chart.bundle.js"></script>
+<script src="http://www.chartjs.org/samples/latest/utils.js"></script>
+
+<style>
+     @media all and (min-width: 960px){
+            .row_elem{
+                float: left;
+                width: 25%;
+            }
+            .alert{
+                float: left;
+                width: 75%;
+            }
+
+    }
+    @media all and (max-width: 950px){
+            .row_elem{
+                float: left;
+                width: 100%;
+            }
+            .alert{
+                float: left;
+                width: 100%;
+            }
+
+    }
+
+
+
+
+    /*@media all and (max-width: 750px){*/
+            /*.row_elem{*/
+                /*float: left;*/
+                /*width: 100%;*/
+            /*}*/
+            /*.alert{*/
+                /*float: left;*/
+                /*width: 100%;*/
+            /*}*/
+
+    /*}*/
+    canvas{
+        -moz-user-select: none;
+        -webkit-user-select: none;
+        -ms-user-select: none;
+    }
+
+    p {
+        margin: 10px 20px;
+    }
+    .separated {
+    border-spacing: 15px  15px;
+    border-collapse: separate;
+    /*font-size: 3vw;*/
+    }
+
+
+
+</style>
+
+</head>
+<body>
+    <div id= "content" class="container">
+        <div class="header clearfix">
+            <nav id="main_menu" style="margin-top: 20px;">
+                    <ul class="nav nav-pills pull-right">
+                    <!--<li role="presentation" class="active" data-toggle="modal" data-target="#myModal" ><a href="#">Add New<span class="glyphicon glyphicon-plus btn-sm" aria-hidden="true"></span></a></li>-->
+
+            <!--<li role="presentation"><a href="faq.html">FAQ  <span
+                class="glyphicon glyphicon-question-sign btn-sm" aria-hidden="true"></span></a></li>
+            -->
+            </ul>
+            </nav>
+            <div class="page-header" id="headerPage">
+                        <!--<img src="/static/AlbalogoReports.png" alt="LogoN" id="Logo" height="95" width="115">-->
+                    <h1 id="first_Title"> </h1>
+
+            </div>
+        </div>
+    </div>
+</body>
+
+<script>
+    var myCharts = {};
+    var refresh = 3;
+    var title= '';
+    var structureDone = false;
+    $(document).ready(function() {
+        createFormStructure();
+        readJSON();
+        timer.start(function(){
+            readJSON();
+        }, refresh);
+
+
+    });
+    var timer = {
+        running: false,
+        iv: 5000,
+        timeout: false,
+        cb : function(){},
+        start : function(cb,iv){
+            var elm = this;
+            clearInterval(this.timeout);
+            this.running = true;
+            if(cb) this.cb = cb;
+            if(iv) this.iv = iv;
+            this.timeout = setTimeout(function(){elm.execute(elm)}, this.iv);
+        },
+        execute : function(e){
+            if(!e.running) return false;
+            e.cb();
+            e.start();
+        },
+        stop : function(){
+            this.running = false;
+        },
+        set_interval : function(iv){
+            clearInterval(this.timeout);
+            this.start(false, iv);
+        }
+    };
+
+    function createFormStructure() {
+
+        title_class = document.getElementById("first_Title");
+
+
+    }
+
+    function readJSON(){
+        try{
+
+
+            $.getJSON("data.json", function(data) {
+
+                val = data['data'];
+                title = data['section'];
+                title_class.textContent= title;
+                timestamp = data['timestamp'];
+
+                refresh = data['refresh_period'];
+
+                if (!structureDone){
+                    createHeadland(title, title, 'test','','status');
+
+                    for (var v in val) {
+                        plot_type = false;
+
+                        if( val[v].data_format !== "SCALAR" ){
+                            plot_type = true;
+                        }
+                        createTable(v, val, title, plot_type, null);
+
+                    }
+                }else{
+                    updateValues(val);
+                }
+                structureDone = true;
+                var status =  document.getElementById(title + "_state");
+                status.innerHTML = "Updated at " + timestamp;
+            });
+        }catch(err) {
+              console.log(err);
+        }
+        refresh = refresh/2;
+//        Check the minimum refresh period
+        if (refresh<0.1){
+            refresh = 0.1
+        }
+        timer.set_interval(refresh);
+
+    }
+
+
+    function createTable(Attr, json, title_name, plot_type, hist_File){
+        low  = Attr.toLowerCase();
+
+        //Default variables
+        if ((json[low]) || (plot_type === true)) {
+            if(plot_type === true){
+                modelo = cleanString(Attr) ;
+                // Text for Element th 1, contains the attribute name
+                label = document.createTextNode(createLabelName(Attr));
+                hist_NameFile = hist_File;
+                // Text for Element th 1, contains the attribute name
+                model = document.createTextNode(Attr);
+            }else{
+                Attr = low;
+                // Model of the attribute to add
+                modelo = cleanString(json[Attr].full_name);
+                // Text for Element th 1, contains the attribute name
+                label = document.createTextNode(json[Attr].label);
+                model = document.createTextNode(json[Attr].full_name);
+                // Text for Element th 1, contains the attribute name
+            }
+
+            table = document.createElement("table");
+            table.style.width = '100%';
+
+            contentTable = document.createElement("tr");
+            contentTable.style.width = '100%'
+            table_forLabel = document.createElement("th");
+            table_forLabel.style.position = 'relative';
+//            table_forLabel.style.float= 'left';
+            table_forLabel.className = 'labelName row_elem';
+            table_forModalid = document.createElement("th");
+            table_forModalid.className =  'alert'
+            table_forModalid.style.position = 'relative';
+//            table_forModalid.style.float= 'left';
+
+            element_Br = document.createElement("br");
+            span_forModal = document.createElement("span");
+            span_forModal.className="grayAttrName";
+            //Adding values
+            document.getElementById(title_name).appendChild(table);
+            table.className = "separated";
+            table_forLabel.appendChild(label);
+            table_forLabel.appendChild(element_Br);
+            table_forLabel.appendChild(span_forModal);
+//            table_forLabel.style.width = "30%";
+            span_forModal.style.align = "center";
+            span_forModal.style.color = "grey";
+            span_forModal.style.fontSize = "0.75em";
+            span_forModal.appendChild(model);
+            tit = cleanString(title_name);
+            id= tit+'_'+modelo;
+            table_forModalid.id = id;
+            table_forModalid.style.textAlign="center";
+//            table_forModalid.style.width="70%";
+
+            table.appendChild(contentTable);
+            contentTable.appendChild(table_forLabel);
+            contentTable.appendChild(table_forModalid);
+
+            if( plot_type === true){
+                Plot(id, Attr);
+            }
+
+            if(json[low]){
+
+                /* Loop for check the quality of the attribute and change
+                the color of the background
+                 Here is checked the data format and if it is "SCALAR".*/
+
+                if (json[Attr].data_format === "SCALAR"){
+                    model = Attr;
+                    string = json[Attr].value;
+                    color = json[Attr].quality;
+                    createStringOutput(id, string, color);
+
+                    /* Here is checked the data format and if it is "SPECTRUM",
+                    cause if is it the case, we need to do a plot with the
+                    data.*/
+
+                }else if(json[Attr].data_format === "SPECTRUM"){
+
+                    if(json[Attr].data_type === "DevString"){
+
+                        var value = json[Attr].value;
+                        model = json[Attr].model;
+                        createArrayOutput(id, value);
+
+                    }
+                }
+            }
+
+        } else if (Attr.length > 0) {
+            pre = document.createElement("pre");
+            pre.innerHTML = Attr;
+            pre.setAttribute("style","border: 0; margin: 10px;");
+            document.getElementById(title_name).appendChild(pre);
+        }
+    }
+    function cleanString(model){
+
+        //delete special char from model string
+        model = model.replace(/\//g,"-");
+        model = model.replace(/\:/g,"-");
+        model = model.replace(/\./g,"-");
+        model = model.toLowerCase();
+        return model;
+    }
+    /* Make the output of the beamlines, change the colors and the values */
+    function createStringOutput(model, string, color){
+
+        var modelo = cleanString(model);
+        $("#"+modelo).text(string);
+        var state = "alert alert-warning";
+
+        if (color == "ATTR_VALID"){
+            state = "alert alert-success";
+        }else if (color == "ATTR_WARNING"){
+            state = "alert alert-danger";
+        }else if(color == "ATTR_ALARM"){
+            state = "alert alert-warning";
+        }else if(color == "ATTR_MOVING"){
+            state = "alert alert-info";
+        }else if(color == "ATTR_NOT_FOUND"){
+            state = "alert alert-danger"
+        }
+        var value = document.getElementById(modelo);
+        value.className = state;
+
+    }
+
+    /*The same as the StringOutput but this is do it for the arrays */
+
+    function createArrayOutput(model, value){
+
+        model_in_html = cleanString(model);
+        model_in_html_elem = $("#"+model_in_html);
+        if( model_in_html_elem.childElementCount !== 0){
+
+            //var myNode = document.getElementById(model_in_html);
+            fc = model_in_html_elem.firstChild;//myNode.firstChild;
+
+            while( fc ) {
+                model_in_html_elem.removeChild( fc );
+                fc = model_in_html_elem.firstChild;
+            }
+
+        }
+        for (var i=0; i<value.length; i++) {
+
+            list = document.createElement("li");
+            valor = document.createTextNode(value[i]);
+            list.className = "list-style";
+            list.appendChild(valor);
+            model_in_html_elem.append(list);
+        }
+        model_in_html_elem.removeAttr("style");
+
+    }
+function createHeadland(section_name, idDiv, idTitle, Description, status){
+
+    // Here are created the vars for the structure
+
+    div_headLand = document.createElement("div");
+    div_bttn_title = document.createElement("div");
+    div_table_deviceValues = document.createElement("div");
+    header_title = document.createElement("h3");
+//    buttonDropdown = document.createElement("button");
+    span_title = document.createElement("span");
+    model_titleTxt = document.createTextNode(section_name + " ");
+
+//    buttonEdit = document.createElement("button");
+//    txtEdit = document.createTextNode("Edit");
+
+
+    header_Description = document.createElement("p");
+    txtDescription = document.createTextNode(Description);
+    boxStatus = document.createElement("div");
+
+    // Structure implementation
+
+    document.getElementById("content").appendChild(div_headLand);
+    div_headLand.className = "panel panel-default";
+    div_headLand.appendChild(div_bttn_title);
+    div_bttn_title.className = "panel-heading";
+    div_bttn_title.appendChild(header_title);
+
+    boxStatus.className = "alert alert-info";
+    boxStatus.setAttribute("role", "alert");
+    boxStatus.innerHTML= "Not Updated";
+    boxStatus.style.width = '100%';
+    boxStatus.id = section_name+'_state';
+    div_headLand.appendChild(boxStatus);
+    header_title.id = idTitle;
+    header_title.className ="panel-title";
+    header_title.appendChild(model_titleTxt);
+    span_title.className = "glyphicon glyphicon-sort";
+    span_title.setAttribute("aria-hidden","true");
+    div_headLand.appendChild(div_table_deviceValues);
+    div_table_deviceValues.id = idDiv;
+    div_table_deviceValues.className = "panel-collapse collapse in";
+
+    div_table_deviceValues.setAttribute("height", "auto");
+    div_table_deviceValues.appendChild(header_Description);
+    header_Description.appendChild(txtDescription);
+    header_Description.setAttribute("display", "inline");
+    header_Description.setAttribute("style", "margin: 10px 20px;");
+    header_Description.className ="separated";
+
+    idDescription = idDiv + "Des";
+    header_Description.id = idDescription;
+
+    // Button edit implementation
+
+//    id_button = section_name.concat("_Button");
+//    header_title.appendChild(buttonEdit);
+//    buttonEdit.className = "btn btn-primary btn-sm pull-right";
+//    buttonEdit.id = id_button;
+//    buttonEdit.setAttribute("type", "button");
+//    buttonEdit.setAttribute("data-toggle", "modal");
+//    buttonEdit.setAttribute("data-target", "#myModal");
+//    buttonEdit.appendChild(txtEdit);
+//    buttonEdit.setAttribute("onclick", "getOutput('"+section_name+"');");
+}
+
+function extractFileName(Title){
+
+        title_name = Title.replace(/[&\/\\#,+()$~%.'":*?<>{}]/g, "");
+        valor = title_name;
+        fileName = valor.replace(/\ /g,"");
+        return fileName;
+
+    }
+// Create the name of the label site with the attribute
+function createLabelName(Attr){
+
+    splittedAttr = Attr.split("/");
+    finalName = splittedAttr.pop();
+    finalName = finalName.replace(/\.hist/g,"");
+    return finalName;
+}
+
+// Function of plot creation
+function Plot(classID, model){
+    // Plot options configuration
+
+//    var plotData = structure_config.data[model].value;
+    config = {
+        type: 'line',
+        data: {
+
+            labels: [''],
+            datasets: [ {
+                fill: false,
+                backgroundColor: window.chartColors.blue,
+                borderColor: window.chartColors.blue,
+                borderWidth: 1,
+                pointBorderWidth:0.1,
+                data: []
+            }]
+        },
+        options: {
+            vAxis: {minValue: 0},
+
+            legend: {
+                display: false,
+                labels: {
+                    fontSize: 0
+                }
+            },
+            responsive: true,
+            title:{
+                display: false,
+                text:model
+            },
+            tooltips: {
+                mode: 'index',
+                intersect: false
+            },
+            hover: {
+                mode: 'nearest',
+                intersect: true
+            },
+            scales: {
+                xAxes: [{
+                    display: true,
+                    scaleLabel: {
+                        display: true
+                        //labelString: 'Month'
+                    },
+                    ticks: {
+                        maxTicksLimit:1
+                    }
+                }],
+                yAxes: [{
+                    display: true,
+                    scaleLabel: {
+                        display: true
+                        //labelString: 'Value'
+                    }
+                }]
+            }
+        }
+
+    };
+
+    var canv = document.createElement('canvas');
+    canv.id = classID+'_canvas';
+    var elem = document.getElementById(classID);
+    elem.appendChild(canv);
+    var chart = new Chart(canv.getContext("2d"), config);
+    myCharts[chart.chart.canvas.id] = chart;
+
+}
+
+
+// Javascript function for refresh
+function updateValues(data){
+
+    for (Attr in data){
+        if(typeof data[Attr] !== "undefined" || data[Attr] === null){
+            if ( (data[Attr]).data_format === "SCALAR" ){
+              model = cleanString(data[Attr].section) +'_'+ Attr;
+              model = model.replace(/\ /g,"");
+
+              string = data[Attr].value;
+              color = data[Attr].quality;
+              createStringOutput(model, string, color);
+
+            }else if ( data[Attr].data_format === "SPECTRUM" ){
+              model = data[Attr].full_name;
+              model = cleanString(data[Attr].section) +'_'+ Attr;
+              model = model.replace(/\ /g,"");
+              value = data[Attr].value;
+              updatePlot(model, value);
+            }
+        }
+    }
+    status.innerHTML = "Updated at " + data.updatetime;
+    // status.style.fontSize="2.5vw";
+}
+/*Refresh the plots, this function only works when we put the plot directly on the data label of the form*/
+function updatePlot(id, data) {
+    //$("#"+id+'_canvas').data;
+    id = cleanString(id);  // Model of the beamline attribute to add
+    var chart = myCharts[id+'_canvas'];
+    nums = [];
+    for (i = 0; i <= data.length; i++) nums.push(i);
+    chart.data.labels = nums;
+    chart.data.datasets[0].data = data;
+    chart.update();
+    }
+</script>

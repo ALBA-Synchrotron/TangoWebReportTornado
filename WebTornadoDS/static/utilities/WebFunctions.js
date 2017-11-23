@@ -136,6 +136,8 @@ function createHeadland(section_name, idDiv, idTitle, Description, status){
     boxStatus.setAttribute("role", "alert");
     boxStatus.innerHTML= "Not Updated";
     boxStatus.id = section_name+'_state';
+    boxStatus.style.width = '100%';
+
     div_headLand.appendChild(boxStatus);
     header_title.id = idTitle;                                           
     header_title.className ="panel-title";                           
@@ -425,26 +427,40 @@ function createTable(Attr, json, title_name, plot_type, hist_File){
         }
 
         table = document.createElement("table");
+        table.style.width = '100%';
+
         contentTable = document.createElement("tr");
+        contentTable.style.width = '100%';
+
         table_forLabel = document.createElement("th");
+        table_forLabel.style.position = 'relative';
+
+        table_forLabel.className = 'labelName row_elem';
         table_forModalid = document.createElement("th");
+
+        table_forModalid.className =  'alert'
+        table_forModalid.style.position = 'relative';
+
         element_Br = document.createElement("br");
         span_forModal = document.createElement("span");
-
+        span_forModal.className="grayAttrName";
         //Adding values
         document.getElementById(title_name).appendChild(table);
         table.className = "separated";
         table_forLabel.appendChild(label);
         table_forLabel.appendChild(element_Br);
         table_forLabel.appendChild(span_forModal);
-        table_forLabel.style.width = "30%";
+        // table_forLabel.style.width = "30%";
         span_forModal.style.align = "center";
         span_forModal.style.color = "grey";
+        span_forModal.style.fontSize = "0.75em";
         span_forModal.appendChild(model);
         tit = cleanString(title_name);
         id= tit+'_'+modelo;
         table_forModalid.id = id;
         table_forModalid.style.textAlign="center";
+        // table_forModalid.style.width="70%";
+
         table.appendChild(contentTable);
         contentTable.appendChild(table_forLabel);
         contentTable.appendChild(table_forModalid);
@@ -531,11 +547,11 @@ function createStringOutput(model, string, color){
     }else if (color == "ATTR_WARNING"){
             state = "alert alert-danger";
     }else if(color == "ATTR_ALARM"){
-            statee = "alert alert-warning";
+            state = "alert alert-warning";
     }else if(color == "ATTR_MOVING"){
             state = "alert alert-info";
     }else if(color == "ATTR_NOT_FOUND"){
-            state = "alert alert-secondary"
+            state = "alert alert-danger"
     }
 
     document.getElementById(modelo).className = state
@@ -595,6 +611,7 @@ function updateValues(jsondata){
     }
     var status =  document.getElementById(jsondata.section + "_state");
     status.innerHTML = "Updated at " + jsondata.updatetime;
+    // status.style.fontSize="2.5vw";
 }
 
 
@@ -712,5 +729,6 @@ function expand(nameid){
     return true;
 
 }
+
 
 
