@@ -635,6 +635,9 @@ function Plot(classID, model){
                 }]
             },
             options: {
+                    elements: { point: { radius: 1 } },
+
+
                     vAxis: {minValue: 0},
 
                     legend: {
