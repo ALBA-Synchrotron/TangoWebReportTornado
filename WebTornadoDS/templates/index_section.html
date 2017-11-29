@@ -83,12 +83,13 @@ crossorigin="anonymous"
         <div class="header clearfix">
             <nav id="main_menu" style="margin-top: 20px;">
                     <ul class="nav nav-pills pull-right">
-                 
+
             </ul>
             </nav>
             <div class="page-header" id="headerPage">
                         <!--<img src="/static/AlbalogoReports.png" alt="LogoN" id="Logo" height="95" width="115">-->
-                    <h1 id="first_Title" style=" text-align: center;
+                    <h1 class="text-muted" id="first_Title" style="
+                    text-align: center;
 "> </h1>
 
             </div>
@@ -98,10 +99,12 @@ crossorigin="anonymous"
 
 <script>
     var myCharts = {};
-    var refresh = 3;
+    var refresh = 3000;
     var title= '';
     var structureDone = false;
     $(document).ready(function() {
+        $.ajaxSetup({ cache: false });
+
         createFormStructure();
         readJSON();
         timer.start(function(){
@@ -148,17 +151,21 @@ crossorigin="anonymous"
         try{
 
 
-            $.getJSON("data.json", function(data) {
+            $.getJSON("./data.json", function(data) {
 
                 val = data['data'];
                 title = data['section'];
                 title_class.textContent= title;
                 timestamp = data['timestamp'];
-
+                description = data['description'];
                 refresh = data['refresh_period'];
+                if (typeof refresh != 'undefined'){
+                    refresh = 3000;
+                }
+
 
                 if (!structureDone){
-                    createHeadland(title, title, 'test','','status');
+                    createHeadland(title, title, 'test', description,'status');
 
                     for (var v in val) {
                         plot_type = false;
@@ -181,8 +188,8 @@ crossorigin="anonymous"
         }
         refresh = refresh/2;
 //        Check the minimum refresh period
-        if (refresh<0.1){
-            refresh = 0.1
+        if (refresh<100){
+            refresh = 100
         }
         timer.set_interval(refresh);
 

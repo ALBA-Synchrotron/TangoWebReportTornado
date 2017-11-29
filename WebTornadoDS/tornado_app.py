@@ -32,8 +32,23 @@ from tornado.websocket import WebSocketHandler
 
 
 class MainHandler(RequestHandler):
-    def get(self):
-        self.render("index.html")
+    def initialize(self, path):
+        self.path= path
+
+
+    def get(self, url=None):
+        to_render = "index.html"
+        if url != '':
+            if not url.endswith('json') and not url.endswith('html'):
+                if not url.endswith('/'):
+                    self.redirect(url+'/')
+                to_render = os.path.join(self.path, url, 'index.html')
+            else:
+
+                to_render = os.path.join(self.path, url)
+        print "Rendering %s" % to_render
+
+        self.render(to_render)
 
 class TangoDSSocketHandler(WebSocketHandler):
     waiters = set()
@@ -106,20 +121,17 @@ class TornadoManagement(object):
             pass
 
 
-
-
-
-
         self.template_path = path + "/templates"
         self.static_path = path + "/static"
-        Json_static = path + "/JSONfiles/"
+        self.Json_static = path + "/JSONfiles/"
 
-        self.handlers = [(r"/", MainHandler),
-                    (r"/index.html", MainHandler),
+        self.handlers = [
+                    #(r"/index.html", MainHandler),
                     (r"/service/*", TangoDSSocketHandler,
                      {"parent": parent}),
-                    (r'/JSONfiles/(.*)', tornado.web.StaticFileHandler,
-                     {'path': Json_static})]
+                    # (r"/*/(.*json*)", tornado.web.StaticFileHandler,
+                    #  {'path': self.Json_static}),
+                    (r"/(.*)", MainHandler,  {'path': self.Json_static}),]
         self.server = None
         self.started = False
 

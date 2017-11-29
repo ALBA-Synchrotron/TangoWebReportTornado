@@ -118,7 +118,8 @@ function createHeadland(section_name, idDiv, idTitle, Description, status){
 
     buttonEdit = document.createElement("button");
     txtEdit = document.createTextNode("Edit");
-    
+
+    expandButton = document.createElement("button");
 
     header_Description = document.createElement("p");
     txtDescription = document.createTextNode(Description);
@@ -170,7 +171,13 @@ function createHeadland(section_name, idDiv, idTitle, Description, status){
     // Button edit implementation
 
     id_button = section_name.concat("_Button");
-    header_title.appendChild(buttonEdit);           
+    header_title.appendChild(expandButton);
+
+    header_title.appendChild(buttonEdit);
+    expandButton.className = "glyphicon glyphicon-new-window btn btn-primary btn-sm pull-right";
+    expandButton.setAttribute("type", "button");
+    expandButton.setAttribute("onclick", " window.location= '/"+section_name+"/';");
+
     buttonEdit.className = "btn btn-primary btn-sm pull-right";         
     buttonEdit.id = id_button;          
     buttonEdit.setAttribute("type", "button");                          

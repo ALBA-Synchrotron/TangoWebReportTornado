@@ -39,6 +39,7 @@ from matplotlib import cm
 import numpy as np
 from PIL import Image
 import shutil
+import threading
 
 class WebTornadoDS(DynamicDSClass):
 
@@ -180,8 +181,9 @@ class WebTornadoDS4Impl(DynamicDS):
         self._data_dict = {}
         self.refresh_period = 3000
         self.extraJSONpath = ""
+        self.structureConfig = {}
         self.Start()
-
+        self.sem = threading.Semaphore()
 
     def Init(self):
         self.info_stream('In %s::Init()' % self.get_name())
@@ -276,6 +278,7 @@ class WebTornadoDS4Impl(DynamicDS):
             return []
         json_acceptable_string = p.replace("'", "\"")
         p = json.loads(json_acceptable_string)
+        self.structureConfig = p
         return p.keys()
 
     def needJSON(self):
@@ -337,22 +340,24 @@ class WebTornadoDS4Impl(DynamicDS):
                     # check if the data is empty:
                     if len(att_vals) != 0:
                         if self.AutoGenerateJSON:
-                            filename = section + ".json"
-                            self.attributes2json(self.JSON_FOLDER,
-                                                 filename, att_vals)
+                            dir_path = os.path.dirname(
+                                os.path.realpath(__file__))
+
+                            folder = os.path.join(dir_path,self.JSON_FOLDER,
+                                                  section)
+                            filename = "data.json"
+
+                            val = self.createJsonData(att_vals, section)
+
+                            self.attributes2json(folder,
+                                                 filename, val)
                             try:
                                 if self.extraJSONpath != "":
                                     filename = "data.json"
                                     folder = os.path.join(self.extraJSONpath,
                                                         section)
+                                    val = self.createJsonData(att_vals, section)
 
-                                    val = {}
-                                    val['data'] = att_vals
-                                    time_now = datetime.datetime.fromtimestamp(
-                                            time.time()).strftime('%Y-%m-%d %H:%M:%S')
-                                    val['timestamp'] = time_now
-                                    val['refresh_period'] = self.refresh_period
-                                    val['section'] = section
                                     self.attributes2json(folder,
                                                          filename, val)
                             except Exception as e:
@@ -398,6 +403,8 @@ class WebTornadoDS4Impl(DynamicDS):
 
     def read_attributes_values(self, filter_by_section=None):
         # Check current config
+        self.sem.acquire()
+        print "Entering in read_atttrbibutes_values"
 
         attrs = []
         self._data_dict = {}
@@ -426,8 +433,9 @@ class WebTornadoDS4Impl(DynamicDS):
 
             full_name = str(full_name).lower()
             self._data_dict[full_name] = {}
-            
+
             try:
+                print "Entering %r"%full_name
                 # Read the Current Value / config
                 import fandango.callbacks
 
@@ -490,6 +498,8 @@ class WebTornadoDS4Impl(DynamicDS):
 
 
         self.last_values_update = time.time()
+        print "leaving in read_atttrbibutes_values"
+        self.sem.release()
         return self._data_dict
 
 
@@ -558,8 +568,10 @@ class WebTornadoDS4Impl(DynamicDS):
                   raise
           json.dump(attrs,open(file,'w'),encoding='latin-1')
           html_file = os.path.join(folder, 'index.html')
-          shutil.copy('templates/index_section.html', html_file)
-          print('%d attributes written to %s'%(len(attrs),file))
+          dirname, filename = os.path.split(os.path.abspath(__file__))
+          file = os.path.join(dirname, 'templates/index_section.html')
+          shutil.copy(file, html_file)
+          print('%d attributes written to %s'%(len(attrs),html_file))
         except Exception,e:
           print('attributes2json(%s) failed!'%file)
           failed = 0
@@ -572,8 +584,6 @@ class WebTornadoDS4Impl(DynamicDS):
           if not failed:
               raise e
         return attrs
-
-
         
 
     def createImage(self, value, full_name, section=None):
@@ -604,3 +614,13 @@ class WebTornadoDS4Impl(DynamicDS):
             print msg
 
         return imagename
+    def createJsonData(self, att_vals, section):
+        val = {}
+        val['data'] = att_vals
+        time_now = datetime.datetime.fromtimestamp(
+            time.time()).strftime('%Y-%m-%d %H:%M:%S')
+        val['timestamp'] = time_now
+        val['refresh_period'] = self.refresh_period
+        val['section'] = section
+        val['description'] = self.structureConfig[section]['Description']
+        return val
