@@ -569,9 +569,9 @@ class WebTornadoDS4Impl(DynamicDS):
           json.dump(attrs,open(file,'w'),encoding='latin-1')
           html_file = os.path.join(folder, 'index.html')
           dirname, filename = os.path.split(os.path.abspath(__file__))
-          file = os.path.join(dirname, 'templates/index_section.html')
-          shutil.copy(file, html_file)
-          print('%d attributes written to %s'%(len(attrs),html_file))
+          f = os.path.join(dirname, 'templates/index_section.html')
+          shutil.copy(f, html_file)
+          print('%d attributes written to %s'%(len(attrs),file))
         except Exception,e:
           print('attributes2json(%s) failed!'%file)
           failed = 0
