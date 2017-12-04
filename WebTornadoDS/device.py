@@ -84,14 +84,7 @@ class WebTornadoDS(DynamicDSClass):
                   'Url':[[PyTango.ArgType.DevString,
                               PyTango.AttrDataFormat.SCALAR,
                               PyTango.AttrWriteType.READ]],
-                  'refresh_period': [[PyTango.ArgType.DevFloat,
-                                      PyTango.AttrDataFormat.SCALAR,
-                                      PyTango.AttrWriteType.READ_WRITE],
-                                     {
-                                        'Memorized': 'True',
-                                        'unit': 'ms',
-                                         'min_value': 100,
-                                    }],
+
                   'extraJSONpath':[[PyTango.ArgType.DevString,
                               PyTango.AttrDataFormat.SCALAR,
                               PyTango.AttrWriteType.READ_WRITE],
@@ -179,11 +172,15 @@ class WebTornadoDS4Impl(DynamicDS):
         self.tornado = TornadoManagement(port=self.port, parent=self)
         self.url = socket.gethostname() + ':' + str(self.port)
         self._data_dict = {}
-        self.refresh_period = 3000
         self.extraJSONpath = ""
         self.structureConfig = {}
         self.Start()
         self.sem = threading.Semaphore()
+        self.acquisitionThread = acquisitionThread(self)
+        self.acquisitionThread.start()
+        self.last_refresh = {}
+        self.last_refresh_section = 0
+        self.last_refresh_needJSON = 0
 
     def Init(self):
         self.info_stream('In %s::Init()' % self.get_name())
@@ -205,7 +202,7 @@ class WebTornadoDS4Impl(DynamicDS):
     #   Always executed hook method
     # ------------------------------------------------------------------
     def always_executed_hook(self):
-        self.debug_stream('In %s::always_executed_hook()' % self.get_name())
+        # self.debug_stream('In %s::always_executed_hook()' % self.get_name())
         DynamicDS.always_executed_hook(self)
         self.state_machine()
 
@@ -225,6 +222,7 @@ class WebTornadoDS4Impl(DynamicDS):
         self.set_state(PyTango.DevState.ON)
         self.set_status('Status is ON')
         self.tornado.stop()
+        self.acquisitionThread.stop()
 
     def GetAttributes(self):
         print dir(self)
@@ -236,19 +234,19 @@ class WebTornadoDS4Impl(DynamicDS):
     # ------------------------------------------------------------------
     #   read Attr attribute
     # ------------------------------------------------------------------
-
-    def read_refresh_period(self, the_att):
-        self.info_stream('%s' % self.refresh_period)
-        U = PyTango.Util.instance()
-        admin = U.get_dserver_device()
-        val =  self.get_command_poll_period('Run')
-        self.refresh_period = val
-        the_att.set_value(self.refresh_period)
-
-    def write_refresh_period(self, attr):
-        val = attr.get_write_value()
-        self.refresh_period = val
-        self.poll_command('Run', int(self.refresh_period))
+    #
+    # def read_refresh_period(self, the_att):
+    #     self.info_stream('%s' % self.refresh_period)
+    #     U = PyTango.Util.instance()
+    #     admin = U.get_dserver_device()
+    #     val =  self.get_command_poll_period('Run')
+    #     self.refresh_period = val
+    #     the_att.set_value(self.refresh_period)
+    #
+    # def write_refresh_period(self, attr):
+    #     val = attr.get_write_value()
+    #     self.refresh_period = val
+    #     self.poll_command('Run', int(self.refresh_period))
 
     def read_extraJSONpath(self, the_att):
         self.info_stream('%s' % self.extraJSONpath)
@@ -270,37 +268,42 @@ class WebTornadoDS4Impl(DynamicDS):
     def setStructureConfig(self, conf):
         self._db.put_device_property(self.get_name(),
                                      {'StructureConfig':conf})
+        self.last_refresh = {}
 
     def getSections(self):
-        try:
-            p = self._db.get_device_property(self.get_name(),['StructureConfig'])['StructureConfig'][0]
-        except:
-            return []
-        json_acceptable_string = p.replace("'", "\"")
-        p = json.loads(json_acceptable_string)
-        self.structureConfig = p
-        return p.keys()
+        if time.time() - self.last_refresh_section >= 1:
+            try:
+                p = self._db.get_device_property(self.get_name(),['StructureConfig'])['StructureConfig'][0]
+            except:
+                return []
+            json_acceptable_string = p.replace("'", "\"")
+            p = json.loads(json_acceptable_string)
+            self.structureConfig = p
+            self.last_refresh_section = time.time()
+        return self.structureConfig.keys()
 
     def needJSON(self):
-        try:
-            self.AutoGenerateJSON = self._db.get_device_property(
-                self.get_name(),['AutoGenerateJSON'])['AutoGenerateJSON'][0]
-            if self.AutoGenerateJSON == 'False':
-                self.AutoGenerateJSON = False
+        if time.time() - self.last_refresh_needJSON >= 1:
+            try:
+                self.AutoGenerateJSON = self._db.get_device_property(
+                    self.get_name(),['AutoGenerateJSON'])['AutoGenerateJSON'][0]
+                if self.AutoGenerateJSON == 'False':
+                    self.AutoGenerateJSON = False
 
-        except:
-            self._db.put_device_property(self.get_name(),
-                                         {'extraJSONpath': self.AutoGenerateJSON})
-            pass
+            except:
+                self._db.put_device_property(self.get_name(),
+                                             {'extraJSONpath': self.AutoGenerateJSON})
+                pass
 
-        try:
-            self.extraJSONpath = self._db.get_device_property(
-                self.get_name(), ['extraJSONpath'])['extraJSONpath'][0]
-        except:
-            self._db.put_device_property(self.get_name(),
-                                         {
-                                             'AutoGenerateJSON': self.AutoGenerateJSON
-                                         })
+            try:
+                self.extraJSONpath = self._db.get_device_property(
+                    self.get_name(), ['extraJSONpath'])['extraJSONpath'][0]
+            except:
+                self._db.put_device_property(self.get_name(),
+                                             {
+                                                 'AutoGenerateJSON': self.AutoGenerateJSON
+                                             })
+                self.last_refresh_needJSON = time.time()
         return self.AutoGenerateJSON
         
     def readAttributesFromSection(self, section):
@@ -317,14 +320,35 @@ class WebTornadoDS4Impl(DynamicDS):
         return attrs    
 
     def Run(self):
+        pass
+
+    def checkacquire(self):
         report_msg = False
+        waiters = len(TangoDSSocketHandler.waiters)
+        if self.needJSON() or waiters >= 1:
+            sections = self.getSections()
+            for section in sections:
+                refresh_period = self.structureConfig[section][
+                    'RefreshPeriod']
+
+                if self.last_refresh.has_key(section):
+                    t = time.time() - self.last_refresh[section]
+                    t = t * 1000
+                    if t >= refresh_period:
+                        print "refreshing %r with %r"%(section, t)
+                        self.acquire(section)
+                        self.last_refresh[section]= time.time()
+                else:
+                    self.acquire(section)
+                    self.last_refresh[section] = time.time()
+        else:
+            if not report_msg:
+                print "WEB Data file  generation Stopped!!!...."
+                report_msg = True
+
+    def acquire(self, section):
         try:
-            waiters = len(TangoDSSocketHandler.waiters)
-            if self.needJSON() or waiters >= 1:
 
-                sections = self.getSections()
-
-                for section in sections:
                     att_vals = []
                     try:
                         att_vals = self.read_attributes_values(section)
@@ -370,14 +394,12 @@ class WebTornadoDS4Impl(DynamicDS):
                                 waiter.write_message(jsondata)
                             except:
                                 print "Error sending message to waiters...."
-            else:
-                if not report_msg:
-                    print "WEB Data file  generation Stopped!!!...."
-                    report_msg = True
+
         except Exception as e:
             print e
 
     def newClient(self, client):
+        self.last_refresh = {}
         json_data = {}
 
         # Config Json as a config
@@ -404,8 +426,6 @@ class WebTornadoDS4Impl(DynamicDS):
     def read_attributes_values(self, filter_by_section=None):
         # Check current config
         self.sem.acquire()
-        print "Entering in read_atttrbibutes_values"
-
         attrs = []
         self._data_dict = {}
 
@@ -435,7 +455,6 @@ class WebTornadoDS4Impl(DynamicDS):
             self._data_dict[full_name] = {}
 
             try:
-                print "Entering %r"%full_name
                 # Read the Current Value / config
                 import fandango.callbacks
 
@@ -452,8 +471,8 @@ class WebTornadoDS4Impl(DynamicDS):
                 else:
                     a = PyTango.AttributeProxy(full_name).read()
 
-                self.info(' reading %s, done' % full_name)
-                #self._data_dict[full_name]['data_format'] = str(a.data_format)
+                # self.info(' reading %s, done' % full_name)
+
 
                 if a.data_format == PyTango.AttrDataFormat.IMAGE:
                     self._data_dict[full_name]['data_format'] = "IMAGE"
@@ -498,14 +517,13 @@ class WebTornadoDS4Impl(DynamicDS):
 
 
         self.last_values_update = time.time()
-        print "leaving in read_atttrbibutes_values"
+        # print "leaving in read_atttrbibutes_values"
         self.sem.release()
         return self._data_dict
 
 
     @PyTango.DebugIt()
     def read_Url(self, the_att):
-        self.info_stream("read_url")
         the_att.set_value(self.url)
 
 
@@ -571,7 +589,7 @@ class WebTornadoDS4Impl(DynamicDS):
           dirname, filename = os.path.split(os.path.abspath(__file__))
           f = os.path.join(dirname, 'templates/index_section.html')
           shutil.copy(f, html_file)
-          print('%d attributes written to %s'%(len(attrs),file))
+          # print('%d attributes written to %s'%(len(attrs),file))
         except Exception,e:
           print('attributes2json(%s) failed!'%file)
           failed = 0
@@ -620,7 +638,22 @@ class WebTornadoDS4Impl(DynamicDS):
         time_now = datetime.datetime.fromtimestamp(
             time.time()).strftime('%Y-%m-%d %H:%M:%S')
         val['timestamp'] = time_now
-        val['refresh_period'] = self.refresh_period
+        val['refreshperiod'] = self.structureConfig[section]['RefreshPeriod']
         val['section'] = section
         val['description'] = self.structureConfig[section]['Description']
         return val
+
+
+class acquisitionThread(threading.Thread):
+    def __init__(self, ds):
+        self.ds = ds
+        self.stopped = False
+        threading.Thread.__init__(self)
+
+    def run(self):
+        while not self.stopped:
+            time.sleep(0.1)
+            self.ds.checkacquire()
+
+    def stop(self):
+        self.stopped = True

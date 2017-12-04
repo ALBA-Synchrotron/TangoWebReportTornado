@@ -174,11 +174,16 @@ function createHeadland(section_name, idDiv, idTitle, Description, status){
     header_title.appendChild(expandButton);
 
     header_title.appendChild(buttonEdit);
-    expandButton.className = "glyphicon glyphicon-new-window btn btn-primary btn-sm pull-right";
+    expandButton.className = "btn btn-primary btn-sm pull-right glyphicon" +
+        " glyphicon-new-window ";
+    expandButton.setAttribute("type", "button");
     expandButton.setAttribute("type", "button");
     expandButton.setAttribute("onclick", " window.location= '/"+section_name+"/';");
+    openTxt =document.createTextNode("Open");
+    expandButton.appendChild(openTxt);
 
-    buttonEdit.className = "btn btn-primary btn-sm pull-right";         
+    buttonEdit.className = "btn btn-primary btn-sm pull-right glyphicon" +
+        " glyphicon-edit";
     buttonEdit.id = id_button;          
     buttonEdit.setAttribute("type", "button");                          
     buttonEdit.setAttribute("data-toggle", "modal");            
@@ -210,6 +215,8 @@ function createFormStructure(){
         span_closeX = document.createElement("span");
         modalTitleLabel = document.createElement("label");
         modalTitleContent = document.createElement("input");
+        modalRefreshLabel = document.createElement("label");
+        modalRefreshContent = document.createElement("input");
         hiddenModalTitleContent = document.createElement("input");
         div_modalBody = document.createElement("div");
         div_modalFooter = document.createElement("div");
@@ -269,6 +276,22 @@ function createFormStructure(){
         modalTitleContent.setAttribute("name","Title");
         modalTitleContent.setAttribute("required","required");
         modalTitleContent.setAttribute("align", "center");
+
+        modalRefreshLabel.className = "control-label pull-right";
+        modalRefreshLabel.id = "refresh_label_modal";
+        modalRefreshLabel.setAttribute("name","Refresh");
+        modalRefreshLabel.innerHTML ='Refresh Period:';
+
+        modalRefreshContent.className = "input-sm pull-right";
+        modalRefreshContent.id = "refresh_content_modal";
+        modalRefreshContent.setAttribute('type', 'number');
+        modalRefreshContent.setAttribute('value', 1);
+        modalRefreshContent.setAttribute('step', 0.1);
+        modalRefreshContent.setAttribute('max', 100);
+        modalRefreshContent.setAttribute('min', 0.1);
+        div_modalHeader.appendChild(modalRefreshContent);
+        div_modalHeader.appendChild(modalRefreshLabel);
+
 
         div_modalHeader.appendChild(hiddenModalTitleContent);
         hiddenModalTitleContent.style.display = 'none';
@@ -346,7 +369,7 @@ function save(){
     des = document.getElementById('description_label_modal').value;
     section = document.getElementById('title_label_modal').value;
     prev_section = document.getElementById('hidden_title_label_modal').value;
-
+    refresh_period = document.getElementById('refresh_content_modal').value;
     content = document.getElementById('attrs_label_modal').value;
     var conf = structure_config.config;
     // Delete the prev section name in the local configuration
@@ -362,6 +385,7 @@ function save(){
     content = content.filter(Boolean);
     conf[section].Data= content;
     conf[section].Description = des;
+    conf[section].RefreshPeriod = refresh_period *1000
     data = {};
     data.SaveNewConfig = conf;
     updater.socket.send(JSON.stringify(data));
@@ -719,12 +743,18 @@ function getOutput(sectionName) {
     container_txtArea = document.getElementById('attrs_label_modal');
     container_description = document.getElementById('description_label_modal');
     container_modalTitle = document.getElementById('title_label_modal');
+    container_modalRefresh = document.getElementById('refresh_content_modal');
+
     container_hiddenModalTitle = document.getElementById
     ('hidden_title_label_modal');
     container_hiddenModalTitle.value = sectionName;
     container_modalTitle.value = sectionName;
     container_description.value = structure_config.config[sectionName].Description;
     aux = structure_config.config[sectionName].Data;
+    /* pass to seconds instead milliseconds*/
+    refresh = structure_config.config[sectionName].RefreshPeriod;
+    refresh = refresh/1000.
+    container_modalRefresh.value =  refresh
     container_txtArea.value = "";
     for (i = 0; i < aux.length; i++) {
         str = aux[i];
