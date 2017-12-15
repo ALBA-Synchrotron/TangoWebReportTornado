@@ -177,7 +177,6 @@ function createHeadland(section_name, idDiv, idTitle, Description, status){
     expandButton.className = "btn btn-primary btn-sm pull-right glyphicon" +
         " glyphicon-new-window ";
     expandButton.setAttribute("type", "button");
-    expandButton.setAttribute("type", "button");
     expandButton.setAttribute("onclick", " window.location= '/"+section_name+"/';");
     openTxt =document.createTextNode("Open");
     expandButton.appendChild(openTxt);

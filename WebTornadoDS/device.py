@@ -372,9 +372,11 @@ class WebTornadoDS4Impl(DynamicDS):
                             filename = "data.json"
 
                             val = self.createJsonData(att_vals, section)
-
-                            self.attributes2json(folder,
-                                                 filename, val)
+                            try:
+                                self.attributes2json(folder, filename, val)
+                            except Exception as e:
+                                print "Error on create JSON file in %r \n %r" %(
+                                    folder, e)
                             try:
                                 if self.extraJSONpath != "":
                                     filename = "data.json"
@@ -385,7 +387,8 @@ class WebTornadoDS4Impl(DynamicDS):
                                     self.attributes2json(folder,
                                                          filename, val)
                             except Exception as e:
-                                msg ="Error on write JSON to extraJSONpath: " \
+                                msg ="Error on write to " \
+                                     "extraJSONpath: " \
                                      "%r"%e
                                 print msg
                             # Sent generated data to clients
@@ -577,19 +580,25 @@ class WebTornadoDS4Impl(DynamicDS):
         file = os.path.join(folder, filename)
 
         if not fn.isMapping(attrs):
-          attrs = self.attrs2dict(attrs,keep=keep,log=log)
+            attrs = self.attrs2dict(attrs,keep=keep,log=log)
         try:
-          if not os.path.exists(os.path.dirname(file)):
-              try:
+            if not os.path.exists(os.path.dirname(file)):
+                try:
                   os.makedirs(os.path.dirname(file))
-              except OSError as exc: # Guard against race condition
+                except OSError as exc: # Guard against race condition
                   raise
-          json.dump(attrs,open(file,'w'),encoding='latin-1')
-          html_file = os.path.join(folder, 'index.html')
-          dirname, filename = os.path.split(os.path.abspath(__file__))
-          f = os.path.join(dirname, 'templates/index_section.html')
-          shutil.copy(f, html_file)
-          # print('%d attributes written to %s'%(len(attrs),file))
+            try:
+                json.dump(attrs,open(file,'w'),encoding='latin-1')
+            except Exception as e:
+                print e
+            html_file = os.path.join(folder, 'index.html')
+            dirname, filename = os.path.split(os.path.abspath(__file__))
+            f = os.path.join(dirname, 'templates/index_section.html')
+            try:
+                shutil.copy(f, html_file)
+            except Exception as e:
+                print e
+            # print('%d attributes written to %s'%(len(attrs),file))
         except Exception,e:
           print('attributes2json(%s) failed!'%file)
           failed = 0
@@ -613,9 +622,11 @@ class WebTornadoDS4Impl(DynamicDS):
         imagename = full_name.replace('/','_')
         imagename =  imagename + ".jpg"
 
-        imagenamepath = os.path.join(self.extraJSONpath, imagename)
-
-        img.save(imagenamepath)
+        imagenamepath = os.path.join(self.extraJSONpath, section, imagename)
+        try:
+            img.save(imagenamepath)
+        except Exception as e:
+            print "Error on Save image in %r"%imagenamepath
 
         try:
             if self.extraJSONpath != "":
@@ -627,8 +638,9 @@ class WebTornadoDS4Impl(DynamicDS):
                                     imagename)
                 img.save(imagenamepathext)
         except Exception as e:
+
             msg = "Error on write Image to extraJSONpath: " \
-                  "%r" % e
+                  "%r" % imagenamepathext
             print msg
 
         return imagename

@@ -67,7 +67,7 @@ setup(name=name,
       entry_points=entry_points,
       platforms='all',
       include_package_data=True, #Force read MANIFEST.in
-      install_requires=['setuptools', 'python', 'tornado', 'fandango'],
+      #install_requires=['setuptools', 'python', 'tornado', 'fandango'],
       requires=[],
       classifiers=classifiers
       )
