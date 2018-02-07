@@ -309,8 +309,11 @@ class WebTornadoDS4Impl(DynamicDS):
         if self.needJSON() or waiters >= 1:
             sections = self.getSections()
             for section in sections:
-                refresh_period = self.structureConfig[section][
-                    'RefreshPeriod']
+                try:
+                    refresh_period = self.structureConfig[section][
+                        'RefreshPeriod']
+                except:
+                    refresh_period = 3000
 
                 if self.last_refresh.has_key(section):
                     t = time.time() - self.last_refresh[section]
