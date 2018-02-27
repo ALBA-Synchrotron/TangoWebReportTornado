@@ -110,6 +110,7 @@ class WebTornadoDS(DynamicDSClass):
 class WebTornadoDS4Impl(DynamicDS):
 
     JSON_FOLDER = 'JSONfiles/'
+    DEFAULT_REFRESH_PERIOD = 3000
 
     EMPTY_ATTR = {
         'alarms': [],
@@ -176,11 +177,14 @@ class WebTornadoDS4Impl(DynamicDS):
         self.structureConfig = {}
         self.Start()
         self.sem = threading.Semaphore()
+        self.lock_read_structure_config = threading.Lock()
+
         self.acquisitionThread = acquisitionThread(self)
         self.acquisitionThread.start()
         self.last_refresh = {}
         self.last_refresh_section = 0
         self.last_refresh_needJSON = 0
+
 
     def Init(self):
         self.info_stream('In %s::Init()' % self.get_name())
@@ -240,16 +244,20 @@ class WebTornadoDS4Impl(DynamicDS):
 
     def getStructureConfig(self):
         try:
-            p = self._db.get_device_property(self.get_name(),['StructureConfig'])[
-                'StructureConfig'][0]
+            with self.lock_read_structure_config:
+                p = self._db.get_device_property(self.get_name(),['StructureConfig'])[
+                    'StructureConfig'][0]
         except:
             p = '{}'
 
         return p
 
     def setStructureConfig(self, conf):
-        self._db.put_device_property(self.get_name(),
-                                     {'StructureConfig':conf})
+        print 'Setting StructureConfig: %r'%conf
+        print type(conf)
+        with self.lock_read_structure_config:
+            self._db.put_device_property(self.get_name(),
+                                         {'StructureConfig':conf})
         self.last_refresh = {}
 
     def getSections(self):
@@ -313,7 +321,7 @@ class WebTornadoDS4Impl(DynamicDS):
                     refresh_period = self.structureConfig[section][
                         'RefreshPeriod']
                 except:
-                    refresh_period = 3000
+                    refresh_period = self.DEFAULT_REFRESH_PERIOD
 
                 if self.last_refresh.has_key(section):
                     t = time.time() - self.last_refresh[section]
@@ -345,15 +353,16 @@ class WebTornadoDS4Impl(DynamicDS):
                     # check if the data is empty:
                     if len(att_vals) != 0:
                         if self.AutoGenerateJSON:
-                            dir_path = os.path.dirname(
-                                os.path.realpath(__file__))
-
-                            folder = os.path.join(dir_path,self.JSON_FOLDER,
-                                                  section)
-                            filename = "data.json"
-
-                            val = self.createJsonData(att_vals, section)
                             try:
+                                dir_path = os.path.dirname(
+                                    os.path.realpath(__file__))
+
+                                folder = os.path.join(dir_path, self.JSON_FOLDER,
+                                                  section)
+                                filename = "data.json"
+
+                                val = self.createJsonData(att_vals, section)
+
                                 self.attributes2json(folder, filename, val)
                             except Exception as e:
                                 print "Error on create JSON file in %r \n %r" %(
@@ -372,7 +381,7 @@ class WebTornadoDS4Impl(DynamicDS):
                                      "extraJSONpath: " \
                                      "%r"%e
                                 print msg
-                            # Sent generated data to clients
+                        # Sent generated data to clients
                         for waiter in TangoDSSocketHandler.waiters:
                             try:
                                 waiter.write_message(jsondata)
@@ -627,7 +636,10 @@ class WebTornadoDS4Impl(DynamicDS):
         time_now = datetime.datetime.fromtimestamp(
             time.time()).strftime('%Y-%m-%d %H:%M:%S')
         val['timestamp'] = time_now
-        val['refreshperiod'] = self.structureConfig[section]['RefreshPeriod']
+        try:
+            val['refreshperiod'] = self.structureConfig[section]['RefreshPeriod']
+        except:
+            val['refreshperiod'] = self.DEFAULT_REFRESH_PERIOD
         val['section'] = section
         val['description'] = self.structureConfig[section]['Description']
         return val
