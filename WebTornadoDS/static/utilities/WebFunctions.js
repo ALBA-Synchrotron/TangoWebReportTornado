@@ -171,7 +171,9 @@ function createHeadland(section_name, idDiv, idTitle, Description, status){
     // Button edit implementation
 
     id_button = section_name.concat("_Button");
-    header_title.appendChild(expandButton);
+
+    // TODO it doesn't work when the AutoGenerateJSON is disabled
+    //header_title.appendChild(expandButton);
 
     header_title.appendChild(buttonEdit);
     expandButton.className = "btn btn-primary btn-sm pull-right glyphicon" +
@@ -221,10 +223,11 @@ function createFormStructure(){
         div_modalFooter = document.createElement("div");
         label_sectionDescription = document.createElement("label");
         input_sectionDescription = document.createElement("input");
-        txt_sectionDescription = document.createTextNode("Section Description:");
+        //txt_sectionDescription = document.createTextNode("Section
+        // Description:");
         label_content = document.createElement("label");
         textarea_content = document.createElement("textarea");
-        txt_content = document.createTextNode("Attributes:");
+        //txt_content = document.createTextNode("Attributes:");
         buttonDiscard = document.createElement("button");
         textDiscard = document.createTextNode("Cancel");
         buttonDelete = document.createElement("button");
@@ -237,6 +240,7 @@ function createFormStructure(){
         form_tag.id  = "formId";
         form_tag.setAttribute("action","");
         form_tag.appendChild(div_modalContent);
+
 
         div_modalContent.className = "modal fade";
         div_modalContent.id = "myModal";
@@ -268,28 +272,52 @@ function createFormStructure(){
         modalTitleLabel.className = "control-label";
         modalTitleLabel.setAttribute("for","title_label_modal");
         modalTitleLabel.innerHTML = ' Title: &nbsp';
+        var br = document.createElement("br");
 
-        div_modalHeader.appendChild(modalTitleContent);
-        modalTitleContent.className = "input-lg";
+        div_modalHeader.appendChild(br);
+
+        div_titleGroup = document.createElement("div");
+        div_titleGroup.className = 'input-group pull-right'
+
+        div_titleSpan = document.createElement("span");
+        div_titleSpan.className="input-group-addon";
+        div_titleSpan.innerHTML = 'Title';
+
+        div_titleGroup.appendChild(div_titleSpan);
+        div_titleGroup.appendChild(modalTitleContent);
+        div_modalHeader.appendChild(div_titleGroup);
+
+        modalTitleContent.className = "input-lg form-control";
         modalTitleContent.id = "title_label_modal";
         modalTitleContent.setAttribute("name","Title");
         modalTitleContent.setAttribute("required","required");
         modalTitleContent.setAttribute("align", "center");
 
-        modalRefreshLabel.className = "control-label pull-right";
-        modalRefreshLabel.id = "refresh_label_modal";
-        modalRefreshLabel.setAttribute("name","Refresh");
-        modalRefreshLabel.innerHTML ='Refresh Period:';
 
-        modalRefreshContent.className = "input-sm pull-right";
+        modalRefreshContent.className = "input-sm pull-right form-control";
         modalRefreshContent.id = "refresh_content_modal";
         modalRefreshContent.setAttribute('type', 'number');
-        modalRefreshContent.setAttribute('value', 1);
+        modalRefreshContent.setAttribute('value', 3);
         modalRefreshContent.setAttribute('step', 0.1);
         modalRefreshContent.setAttribute('max', 100);
         modalRefreshContent.setAttribute('min', 0.1);
-        div_modalHeader.appendChild(modalRefreshContent);
-        div_modalHeader.appendChild(modalRefreshLabel);
+
+
+        div_refreshgroup = document.createElement("div");
+        div_refreshgroup.className = 'input-group pull-right'
+
+        div_RefreshSpan1 = document.createElement("span");
+        div_RefreshSpan1.className="input-group-addon";
+        div_RefreshSpan1.innerHTML = 'Refresh Period';
+
+        div_RefreshSpan2 = document.createElement("span");
+        div_RefreshSpan2.className="input-group-addon";
+        div_RefreshSpan2.innerHTML = 'Seconds';
+
+        div_refreshgroup.appendChild(div_RefreshSpan1);
+        div_refreshgroup.appendChild(modalRefreshContent);
+        div_refreshgroup.appendChild(div_RefreshSpan2);
+        //div_modalHeader.appendChild(div_refreshgroup);
 
 
         div_modalHeader.appendChild(hiddenModalTitleContent);
@@ -302,25 +330,51 @@ function createFormStructure(){
         div_modalBody.appendChild(label_sectionDescription);
         label_sectionDescription.className = "control-label";
         label_sectionDescription.setAttribute("for","description_label_modal");
-        label_sectionDescription.appendChild(txt_sectionDescription);
+        //label_sectionDescription.appendChild(txt_sectionDescription);
 
-        div_modalBody.appendChild(input_sectionDescription);
+        //div_modalBody.appendChild(input_sectionDescription);
+
+        div_sectiongroup = document.createElement("div");
+        div_sectiongroup.className = 'input-group pull-right'
+
+        div_sectionSpan = document.createElement("span");
+        div_sectionSpan.className="input-group-addon";
+        div_sectionSpan.innerHTML = 'Section Description';
+
         input_sectionDescription.id ="description_label_modal";
         input_sectionDescription.className = "form-control";
         input_sectionDescription.setAttribute("name","Description");
         input_sectionDescription.setAttribute("type", "text");
         input_sectionDescription.setAttribute("required","required");
 
+        div_sectiongroup.appendChild(div_sectionSpan);
+        div_sectiongroup.appendChild(input_sectionDescription);
+        div_modalBody.appendChild(div_sectiongroup);
+
+
         div_modalBody.appendChild(label_content);
         label_content.className = "control-label";
         label_content.setAttribute("for","attrs_label_modal");
-        label_content.appendChild(txt_content);
+        //label_content.appendChild(txt_content);
 
-        div_modalBody.appendChild(textarea_content);
+        //div_modalBody.appendChild(textarea_content);
+        div_attrGroup = document.createElement("div");
+        div_attrGroup.className = 'input-group pull-right'
+
+        div_attrSpan = document.createElement("span");
+        div_attrSpan.className="input-group-addon";
+        div_attrSpan.innerHTML = 'Attributes';
+
         textarea_content.className = "form-control";
         textarea_content.setAttribute("name","Data");
         textarea_content.id = "attrs_label_modal";
         textarea_content.setAttribute("required","required");
+
+        div_attrGroup.appendChild(div_attrSpan);
+        div_attrGroup.appendChild(textarea_content);
+        div_modalBody.appendChild(div_attrGroup);
+
+        div_modalBody.appendChild(div_refreshgroup);
 
         div_modalInside.appendChild(div_modalFooter);
         div_modalFooter.className = "modal-footer";
@@ -342,6 +396,8 @@ function createFormStructure(){
         div_modalFooter.appendChild(buttonSave);
         buttonSave.className = "btn btn-success";
         buttonSave.setAttribute("onclick","save()");
+        buttonSave.setAttribute("data-dismiss","modal");
+
         buttonSave.appendChild(textSave);
 
     }
@@ -388,6 +444,7 @@ function save(){
     data = {};
     data.SaveNewConfig = conf;
     updater.socket.send(JSON.stringify(data));
+    location.reload(true);
 }
 
 /* DeletFile is used for delete one element, this function to call the Delete
