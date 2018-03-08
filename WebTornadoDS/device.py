@@ -175,15 +175,15 @@ class WebTornadoDS4Impl(DynamicDS):
         self._data_dict = {}
         self.extraJSONpath = ""
         self.structureConfig = {}
-        self.Start()
         self.sem = threading.Semaphore()
         self.lock_read_structure_config = threading.Lock()
+        self.force_acquisition = False
 
-        self.acquisitionThread = acquisitionThread(self)
-        self.acquisitionThread.start()
         self.last_refresh = {}
         self.last_refresh_section = 0
         self.last_refresh_needJSON = 0
+        self.acquisitionThread = None
+        self.Start()
 
 
     def Init(self):
@@ -215,6 +215,10 @@ class WebTornadoDS4Impl(DynamicDS):
     # ------------------------------------------------------------------
     def Start(self):
         self.info_stream('In %s::Start()' % self.get_name())
+        if not self.acquisitionThread or not self.acquisitionThread.is_alive():
+            self.acquisitionThread = acquisitionThread(self)
+            self.acquisitionThread.start()
+
         if not self.tornado.isRunning():
             try:
                 self.tornado.start()
@@ -310,11 +314,13 @@ class WebTornadoDS4Impl(DynamicDS):
         return attrs    
 
     def Run(self):
-        pass
+        print 'RUN -> Force Acquisition'
+        self.force_acquisition = True
+
 
     def checkacquire(self):
         waiters = len(TangoDSSocketHandler.waiters)
-        if self.needJSON() or waiters >= 1:
+        if self.needJSON() or waiters >= 1 or self.force_acquisition:
             sections = self.getSections()
             for section in sections:
                 try:
@@ -326,15 +332,17 @@ class WebTornadoDS4Impl(DynamicDS):
                 if self.last_refresh.has_key(section):
                     t = time.time() - self.last_refresh[section]
                     t = t * 1000
-                    if t >= refresh_period:
-                        print "refreshing %r with %r"%(section, t)
+                    if t >= refresh_period or self.force_acquisition:
+                        print "refreshing %r with %r" % (section, t)
                         self.acquire(section)
                         self.last_refresh[section]= time.time()
                 else:
+                    print 'First refreshing of %r' % section
                     self.acquire(section)
                     self.last_refresh[section] = time.time()
         else:
             print "WEB Data file  generation Stopped!!!...."
+        self.force_acquisition = False
 
     def acquire(self, section):
         try:
@@ -426,8 +434,8 @@ class WebTornadoDS4Impl(DynamicDS):
         config = self.getStructureConfig()
         json_acceptable_string = config.replace("'", "\"")
         config = json.loads(json_acceptable_string)
-
         sections_rel = {}
+
 
         # Get Sections info
         if filter_by_section:
@@ -436,6 +444,10 @@ class WebTornadoDS4Impl(DynamicDS):
             sections = config.keys()
 
         for section in sections:
+            if not section in config:
+                print 'ERROR: Section %r not found in config %r'% (section,
+                                                                   config)
+                continue
             for att in config[section]['Data']:
                 att = att.lower()
                 attrs.append(att)
@@ -647,9 +659,9 @@ class WebTornadoDS4Impl(DynamicDS):
 
 class acquisitionThread(threading.Thread):
     def __init__(self, ds):
+        threading.Thread.__init__(self)
         self.ds = ds
         self.stopped = False
-        threading.Thread.__init__(self)
 
     def run(self):
         while not self.stopped:
@@ -658,3 +670,4 @@ class acquisitionThread(threading.Thread):
 
     def stop(self):
         self.stopped = True
+        self.join()
