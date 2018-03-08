@@ -200,21 +200,16 @@ function createFormStructure(){
     title =  document.getElementById("first_Title");
     title.innerHTML= structure_config.host;
 
-
     // Check if exist or not a previous modal.
-
     exist = document.getElementById("myModal");
 
     if(exist === null){
-
         div_modalContent = document.createElement("div");
         div_modalDialog = document.createElement("div");
         div_modalInside = document.createElement("div");
         div_modalHeader = document.createElement("div");
         form_tag = document.createElement("form");
         button_closeModal = document.createElement("button");
-        span_closeX = document.createElement("span");
-        modalTitleLabel = document.createElement("label");
         modalTitleContent = document.createElement("input");
         modalRefreshLabel = document.createElement("label");
         modalRefreshContent = document.createElement("input");
@@ -223,11 +218,9 @@ function createFormStructure(){
         div_modalFooter = document.createElement("div");
         label_sectionDescription = document.createElement("label");
         input_sectionDescription = document.createElement("input");
-        //txt_sectionDescription = document.createTextNode("Section
-        // Description:");
+
         label_content = document.createElement("label");
         textarea_content = document.createElement("textarea");
-        //txt_content = document.createTextNode("Attributes:");
         buttonDiscard = document.createElement("button");
         textDiscard = document.createTextNode("Cancel");
         buttonDelete = document.createElement("button");
@@ -263,18 +256,7 @@ function createFormStructure(){
         button_closeModal.setAttribute("type","button");
         button_closeModal.setAttribute("data-dismiss","modal");
         button_closeModal.setAttribute("aria-label","Close");
-        button_closeModal.appendChild(span_closeX);
 
-        span_closeX.setAttribute("aria-hidden","true");
-        span_closeX.innerHTML = '&times;';
-
-        div_modalHeader.appendChild(modalTitleLabel);
-        modalTitleLabel.className = "control-label";
-        modalTitleLabel.setAttribute("for","title_label_modal");
-        modalTitleLabel.innerHTML = ' Title: &nbsp';
-        var br = document.createElement("br");
-
-        div_modalHeader.appendChild(br);
 
         div_titleGroup = document.createElement("div");
         div_titleGroup.className = 'input-group pull-right'
@@ -679,6 +661,7 @@ function updateValues(jsondata){
     data = jsondata.data;
     for (Attr in data){
         if(typeof data[Attr] !== "undefined" || data[Attr] === null){
+
             if ( (data[Attr]).data_format === "SCALAR" ){
               model = cleanString(data[Attr].section) +'_'+ Attr;
               model = model.replace(/\ /g,"");
@@ -698,7 +681,6 @@ function updateValues(jsondata){
     }
     var status =  document.getElementById(jsondata.section + "_state");
     status.innerHTML = "Updated at " + jsondata.updatetime;
-    // status.style.fontSize="2.5vw";
 }
 
 
