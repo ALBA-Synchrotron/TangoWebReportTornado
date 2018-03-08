@@ -37,7 +37,7 @@ import numpy as np
 from PIL import Image
 import shutil
 import threading
-
+import math
 
 class WebTornadoDS(DynamicDSClass):
 
@@ -321,64 +321,67 @@ class WebTornadoDS4Impl(DynamicDS):
                     self.acquire(section)
                     self.last_refresh[section] = time.time()
         else:
-            print "WEB Data file  generation Stopped!!!...."
+            pass
+            #print "WEB Data file  generation Stopped!!!...."
         self.force_acquisition = False
 
     def acquire(self, section):
         try:
-                    att_vals = []
+            att_vals = []
+            try:
+                att_vals = self.read_attributes_values(section)
+                jsondata = {}
+                jsondata['command'] = 'update'
+                jsondata['data'] = att_vals
+                jsondata['section'] = section
+                utime = time.strftime("%Y-%m-%d %H:%M:%S",
+                                      time.localtime())
+                jsondata['updatetime'] = utime
+            except Exception as e:
+                print 'Eception on complete the jsondata'
+                print e
+
+            # check if the data is empty:
+            if len(att_vals) != 0:
+                if self.AutoGenerateJSON:
                     try:
-                        att_vals = self.read_attributes_values(section)
-                        jsondata = {}
-                        jsondata['command'] = 'update'
-                        jsondata['data'] = att_vals
-                        jsondata['section'] = section
-                        utime = time.strftime("%Y-%m-%d %H:%M:%S",
-                                              time.localtime())
-                        jsondata['updatetime'] = utime
+                        dir_path = os.path.dirname(
+                            os.path.realpath(__file__))
+
+                        folder = os.path.join(dir_path,
+                                              self.JSON_FOLDER,
+                                              section)
+                        filename = "data.json"
+
+                        val = self.createJsonData(att_vals, section)
+                        print 'Saving json to %r, %r' % (folder,
+                                                             filename)
+                        self.attributes2json(folder, filename, val)
                     except Exception as e:
-                        print e
-
-                    # check if the data is empty:
-                    if len(att_vals) != 0:
-                        if self.AutoGenerateJSON:
-                            try:
-                                dir_path = os.path.dirname(
-                                    os.path.realpath(__file__))
-
-                                folder = os.path.join(dir_path,
-                                                      self.JSON_FOLDER,
+                        print "Error on create JSON file in %r \n " \
+                              "%r" % (folder, e)
+                    try:
+                        if self.extraJSONpath:
+                            filename = "data.json"
+                            folder = os.path.join(self.extraJSONpath,
+                                                  section)
+                            val = self.createJsonData(att_vals,
                                                       section)
-                                filename = "data.json"
 
-                                val = self.createJsonData(att_vals, section)
-
-                                self.attributes2json(folder, filename, val)
-                            except Exception as e:
-                                print "Error on create JSON file in %r \n " \
-                                      "%r" % (folder, e)
-                            try:
-                                if self.extraJSONpath:
-                                    filename = "data.json"
-                                    folder = os.path.join(self.extraJSONpath,
-                                                          section)
-                                    val = self.createJsonData(att_vals,
-                                                              section)
-
-                                    self.attributes2json(folder, filename,
-                                                         val)
-                            except Exception as e:
-                                msg = "Error on write extraJSONpath: %r" % e
-                                print msg
-                        # Sent generated data to clients
-                        for waiter in TangoDSSocketHandler.waiters:
-                            try:
-                                waiter.write_message(jsondata)
-                            except:
-                                print "Error sending message to waiters...."
-
+                            self.attributes2json(folder, filename,
+                                                 val)
+                    except Exception as e:
+                        msg = "Error on write extraJSONpath: %r" % e
+                        print msg
+                # Sent generated data to clients
+                for waiter in TangoDSSocketHandler.waiters:
+                    try:
+                        waiter.write_message(jsondata)
+                    except:
+                        print "Error sending message to waiters...."
         except Exception as e:
-            print e
+            print 'Exception in acquire method: %r' % e
+
 
     def newClient(self, client):
         self.last_refresh = {}
@@ -410,19 +413,16 @@ class WebTornadoDS4Impl(DynamicDS):
         self.sem.acquire()
         attrs = []
         self._data_dict = {}
-
         # Read the current configuration.
         config = self.getStructureConfig()
         json_acceptable_string = config.replace("'", "\"")
         config = json.loads(json_acceptable_string)
         sections_rel = {}
-
         # Get Sections info
         if filter_by_section:
             sections = [filter_by_section]
         else:
             sections = config.keys()
-
         for section in sections:
             if section not in config:
                 print 'ERROR: Section %r not found in config %r' % (section,
@@ -461,7 +461,7 @@ class WebTornadoDS4Impl(DynamicDS):
                             image_name = self.createImage(a.value,
                                                           full_name, section)
                     except Exception as e:
-                        print e
+                        print 'Exception on create Image, %r' % e
                         # TODO: add default image in case of error
                         image_name = 'template.jpg'
                     value = image_name
@@ -479,6 +479,11 @@ class WebTornadoDS4Impl(DynamicDS):
                     else:
                         value = a.value
                     self._data_dict[full_name]['data_format'] = "SCALAR"
+                    try:
+                        if math.isnan(value):
+                            value = '---'
+                    except:
+                        pass
 
                 self._data_dict[full_name]['value'] = value
                 self._data_dict[full_name]['quality'] = str(a.quality)
@@ -593,15 +598,19 @@ class WebTornadoDS4Impl(DynamicDS):
         return attrs
 
     def createImage(self, value, full_name, section=None):
-        cmap = cm.get_cmap('jet')
-        im = cmap(value)
-        im = np.uint8(im * 255)
-        img = Image.fromarray(im)
 
-        image_name = full_name.replace('/', '_')
-        image_name += ".jpg"
+        try:
+            cmap = cm.get_cmap('jet')
+            im = cmap(value)
+            im = np.uint8(im * 255)
+            img = Image.fromarray(im)
 
-        img_path = os.path.join(self.extraJSONpath, section, image_name)
+            image_name = full_name.replace('/', '_')
+            image_name += ".jpg"
+            # Save image in the server folder
+            img_path = os.path.join(self.JSON_FOLDER, section, image_name)
+        except Exception as e:
+            print 'Exception on compose the image %r' % e
         try:
             img.save(img_path)
         except Exception as e:
@@ -611,7 +620,10 @@ class WebTornadoDS4Impl(DynamicDS):
             if self.extraJSONpath:
                 folder = self.extraJSONpath
                 if section:
-                    folder = os.path.join(self.JSON_FOLDER, section)
+                    folder = os.path.join(folder, section)
+
+                if not os.path.exists(folder):
+                    os.makedirs(folder)
 
                 img_path_ext = os.path.join(folder, image_name)
                 img.save(img_path_ext)
