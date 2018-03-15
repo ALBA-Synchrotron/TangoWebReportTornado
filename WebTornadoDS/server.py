@@ -1,10 +1,8 @@
 #*********************************************************************
-# ESP8266ARS: Python project for a ALBA Remote Sensors base on ESP8266.
+# ESP8266ARS: Python project for WebTornadoDS
 #
-# Author(s): Roberto J. Homs Puron <rhoms@cells.es>,
-#            Alberto Rubio Garcia <arubio@cells.es>
-#            Sergio Astorga Sanchez <sastorga@cells.es>
-#
+# Author(s): Daniel Roldan <droldan@cells.es>
+#            
 # Copyright (C) 2017, CELLS / ALBA Synchrotron
 #
 # This program is free software: you can redistribute it and/or modify
