@@ -39,6 +39,7 @@ import shutil
 import threading
 import math
 
+
 class WebTornadoDS(DynamicDSClass):
 
     device_property_list = {
@@ -143,7 +144,6 @@ class WebTornadoDS4Impl(DynamicDS):
         self.force_acquisition = False
         self.last_refresh = {}
         self.last_refresh_section = 0
-        self.last_refresh_needJSON = 0
         self.acquisitionThread = None
 
         WebTornadoDS4Impl.init_device(self)
@@ -170,6 +170,9 @@ class WebTornadoDS4Impl(DynamicDS):
 
     def Init(self):
         self.info_stream('In %s::Init()' % self.get_name())
+
+        # Force to reload the properties.
+        self.needJSON(force=True)
         self.Stop()
         self.Start()
 
@@ -232,26 +235,26 @@ class WebTornadoDS4Impl(DynamicDS):
     def getStructureConfig(self):
         try:
             with self.lock_read_structure_config:
-                prop = 'StructureConfig'
-                p = self._db.get_device_property(self.get_name(), [prop])[
-                    prop][0]
+                pr = 'StructureConfig'
+                p = self._db.get_device_property(self.get_name(), [pr])[pr][0]
         except:
             p = '{}'
-        return p
+        json_acceptable_string = p.replace("'", "\"")
+        config = json.loads(json_acceptable_string)
+        return config
 
     def setStructureConfig(self, conf):
         with self.lock_read_structure_config:
-            self._db.put_device_property(self.get_name(),
-                                         {'StructureConfig': conf})
+            p = 'StructureConfig'
+            self._db.put_device_property(self.get_name(), {p: conf})
         # Clean the last refresh dict to update ASAP
         self.last_refresh.clear()
 
     def getSections(self):
         if time.time() - self.last_refresh_section >= 1:
             try:
-                prop = 'StructureConfig'
-                p = self._db.get_device_property(self.get_name(), [prop])[
-                    prop][0]
+                pr = 'StructureConfig'
+                p = self._db.get_device_property(self.get_name(), [pr])[pr][0]
             except:
                 return []
             json_acceptable_string = p.replace("'", "\"")
@@ -260,25 +263,27 @@ class WebTornadoDS4Impl(DynamicDS):
             self.last_refresh_section = time.time()
         return self.structureConfig.keys()
 
-    def needJSON(self):
-        if (time.time() - self.last_refresh_needJSON) >= 1:
+    def needJSON(self, force=False):
+
+        if force:
+            pr = 'AutoGenerateJSON'
             try:
-                prop = 'AutoGenerateJSON'
-                self.AutoGenerateJSON = self._db.get_device_property(
-                    self.get_name(), [prop])[prop][0]
+                v = self._db.get_device_property(self.get_name(), [pr])[pr][0]
+                self.AutoGenerateJSON = v
                 # Eval Boolean String
                 self.AutoGenerateJSON = eval(self.AutoGenerateJSON)
 
             except:
+                self.AutoGenerateJSON = False
                 self._db.put_device_property(self.get_name(),
-                                             {prop: self.AutoGenerateJSON})
-
+                                             {pr: self.AutoGenerateJSON})
+            pr = 'extraJSONpath'
             try:
-                self.extraJSONpath = self._db.get_device_property(
-                    self.get_name(), ['extraJSONpath'])['extraJSONpath'][0]
+                v = self._db.get_device_property(self.get_name(), [pr])[pr][0]
+                self.extraJSONpath = v
             except:
                 self.extraJSONpath = None
-                self.last_refresh_needJSON = time.time()
+
         return self.AutoGenerateJSON
 
     def readAttributesFromSection(self, section):
@@ -287,8 +292,6 @@ class WebTornadoDS4Impl(DynamicDS):
 
         # Read the current configuration.
         config = self.getStructureConfig()
-        json_acceptable_string = config.replace("'", "\"")
-        config = json.loads(json_acceptable_string)
         if section in config:
             for att in config[section]['Data']:
                 attrs.append(att.lower())
@@ -329,8 +332,9 @@ class WebTornadoDS4Impl(DynamicDS):
         try:
             att_vals = []
             try:
-                att_vals = self.read_attributes_values(section)
+                att_vals, config = self.read_attributes_values(section)
                 jsondata = {}
+                jsondata['config'] = config
                 jsondata['command'] = 'update'
                 jsondata['data'] = att_vals
                 jsondata['section'] = section
@@ -338,7 +342,7 @@ class WebTornadoDS4Impl(DynamicDS):
                                       time.localtime())
                 jsondata['updatetime'] = utime
             except Exception as e:
-                print 'Eception on complete the jsondata'
+                print 'Exception on complete the jsondata'
                 print e
 
             # check if the data is empty:
@@ -367,7 +371,8 @@ class WebTornadoDS4Impl(DynamicDS):
                                                   section)
                             val = self.createJsonData(att_vals,
                                                       section)
-
+                            print 'Saving json in extraJSONpath:%r, %r' % (
+                                folder, filename)
                             self.attributes2json(folder, filename,
                                                  val)
                     except Exception as e:
@@ -391,17 +396,17 @@ class WebTornadoDS4Impl(DynamicDS):
         json_data['command'] = 'config'
 
         # Send the section Confit at first time
-        conf = self.getStructureConfig()
+        #conf = self.getStructureConfig()
 
         # check if the property is empty
-        if conf != '':
-            json_data['config'] = json.loads(conf)
-        else:
-            json_data['config'] = {}
         # Read Current Attr Values
-        att_values = self.read_attributes_values()
+        att_values, config = self.read_attributes_values()
         json_data['data'] = att_values
         json_data['host'] = tornado.httpserver.socket.gethostname()
+        json_data['config'] = {}
+        if config != '':
+            json_data['config'] = config
+
         # Send Package
         client.write_message(json_data)
         client_name = client.request.remote_ip
@@ -415,8 +420,6 @@ class WebTornadoDS4Impl(DynamicDS):
         self._data_dict = {}
         # Read the current configuration.
         config = self.getStructureConfig()
-        json_acceptable_string = config.replace("'", "\"")
-        config = json.loads(json_acceptable_string)
         sections_rel = {}
         # Get Sections info
         if filter_by_section:
@@ -501,10 +504,9 @@ class WebTornadoDS4Impl(DynamicDS):
                 print('%s failed!' % full_name)
                 print e
 
-        self.last_values_update = time.time()
         # print "leaving in read_atttrbibutes_values"
         self.sem.release()
-        return self._data_dict
+        return self._data_dict, config
 
     @PyTango.DebugIt()
     def read_Url(self, the_att):
