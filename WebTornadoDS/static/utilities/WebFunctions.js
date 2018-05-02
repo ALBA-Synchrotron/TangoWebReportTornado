@@ -721,6 +721,7 @@ function Plot(classID, model){
                     text:model
                 },
                 tooltips: {
+		    enabled: false,
                     mode: 'index',
                     intersect: false
                 },
