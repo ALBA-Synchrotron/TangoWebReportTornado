@@ -20,10 +20,11 @@
 #
 
 
-import json, os
+import fandango as fn
+import json
+import os
 import threading
 
-import fandango as fn
 import tornado
 from tornado.web import Application, RequestHandler
 from tornado.websocket import WebSocketHandler
@@ -136,6 +137,7 @@ class TornadoManagement(object):
     def start(self):
         # Starting Tornado async
         self.thread = threading.Thread(target=self._startTornado)
+        self.thread.daemon = True
         self.thread.start()
 
     def _startTornado(self):
@@ -146,19 +148,23 @@ class TornadoManagement(object):
         # Created a simple gHHTPServer to manage the server
         # and close it on Stop, else the port is in use
         from tornado.httpserver import HTTPServer
-        self.server = HTTPServer(application)
-        self.server.listen(self._webport)
 
-        self.started = True
-        tornado.ioloop.IOLoop.current().start()
+        self.started = False
+        try:
+            tornado.ioloop.IOLoop.current().start()
+            self.server = HTTPServer(application)
+            self.server.listen(self._webport)
+            self.started = True
+        except Exception as e:
+            print e
 
     def stop(self):
         # Close the HTPServer use the port
-        self.server.stop()
-
-        # stop the tornado Service
-        ioloop = tornado.ioloop.IOLoop.instance()
-        ioloop.add_callback(ioloop.stop)
+        if self.started:
+            self.server.stop()
+            # stop the tornado Service
+            ioloop = tornado.ioloop.IOLoop.instance()
+            ioloop.add_callback(ioloop.stop)
 
         self.thread.join()
         self.started = False
