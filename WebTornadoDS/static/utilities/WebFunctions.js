@@ -4,7 +4,6 @@ var structure_config;
 
 function start(jsondata){
     structure_config = jsondata;
-    keys = [];
     createFormStructure();
 
     for (var key in jsondata.config){
@@ -23,17 +22,17 @@ function createTableFromList(config, jsondata, key){
     with the same variable without this char, this process will create other variable
     used like id. In the case of IDTitle, substitute the same name but with upper
     characters.*/
-    idDiv =  extractFileName(key);
-    idTitle = key.toUpperCase()+"id";
+    var idDiv =  extractFileName(key);
+    var idTitle = key.toUpperCase()+"id";
 
     createIndex(key, idTitle);
     createHeadland(key, idDiv, idTitle, config.Description, config.Status);
 
-    dataJson =  jsondata.data;
-    plot_type = false;
+    var dataJson =  jsondata.data;
+    var plot_type = false;
     var histFile;
 
-    for (i=0; i<config.Data.length; i++) {
+    for (var i=0; i<config.Data.length; i++) {
 
         if (config.Data[i].length > 0){
                 at = config.Data[i];
@@ -41,7 +40,7 @@ function createTableFromList(config, jsondata, key){
                     plot_type = true;
                     histFile = config.Data[i];
                 }
-            section_Name = key.replace(/\ /g,"");
+            var section_Name = key.replace(/\ /g,"");
             createTable(config.Data[i], dataJson, section_Name, plot_type, histFile);
             plot_type = false;
 
@@ -54,9 +53,9 @@ function createTableFromList(config, jsondata, key){
 
 function extractFileName(Title){
 
-    title_name = Title.replace(/[&\/\\#,+()$~%.'":*?<>{}]/g, "");
-    valor = title_name;
-    fileName = valor.replace(/\ /g,"");
+    var title_name = Title.replace(/[&\/\\#,+()$~%.'":*?<>{}]/g, "");
+    var valor = title_name;
+    var fileName = valor.replace(/\ /g,"");
     return fileName;
 
 }
@@ -69,13 +68,13 @@ function createIndex(section_name, idTitle){
     it is created or not. If it is equal to 0, It will be created the estructure
     of the index.*/
 
-    exist = document.getElementsByClassName("jumbotron").length;
+    var exist = document.getElementsByClassName("jumbotron").length;
 
     if(exist === 0){
         // Creation the structure of the Index
-        divIndex_Structure_Content = document.createElement("div");
-        divIndex_List = document.createElement("div");
-        ul_Index = document.createElement("ul");
+        var divIndex_Structure_Content = document.createElement("div");
+        var divIndex_List = document.createElement("div");
+        var ul_Index = document.createElement("ul");
 
         document.getElementById("content").appendChild(divIndex_Structure_Content);
         divIndex_Structure_Content.className = "jumbotron";
@@ -86,10 +85,10 @@ function createIndex(section_name, idTitle){
     }
 
     // Creation of the Index
-    li_Index = document.createElement("li");
-    a_link_Index = document.createElement("a");
-    text = document.createTextNode(section_name);
-    txtForExpand = section_name + "_Down";
+    var li_Index = document.createElement("li");
+    var a_link_Index = document.createElement("a");
+    var text = document.createTextNode(section_name);
+    var txtForExpand = section_name + "_Down";
     document.getElementById("index").appendChild(li_Index);
     li_Index.appendChild(a_link_Index);
     a_link_Index.className = "list-group-item";
@@ -108,22 +107,22 @@ function createHeadland(section_name, idDiv, idTitle, Description, status){
 
     // Here are created the vars for the structure
 
-    div_headLand = document.createElement("div");
-    div_bttn_title = document.createElement("div");
-    div_table_deviceValues = document.createElement("div");
-    header_title = document.createElement("h3");
-    buttonDropdown = document.createElement("button");
-    span_title = document.createElement("span");
-    model_titleTxt = document.createTextNode(section_name + " ");
+    var div_headLand = document.createElement("div");
+    var div_bttn_title = document.createElement("div");
+    var div_table_deviceValues = document.createElement("div");
+    var header_title = document.createElement("h3");
+    var buttonDropdown = document.createElement("button");
+    var span_title = document.createElement("span");
+    var model_titleTxt = document.createTextNode(section_name + " ");
 
-    buttonEdit = document.createElement("button");
-    txtEdit = document.createTextNode("Edit");
+    var buttonEdit = document.createElement("button");
+    var txtEdit = document.createTextNode("Edit");
 
-    expandButton = document.createElement("button");
+    var expandButton = document.createElement("button");
 
-    header_Description = document.createElement("p");
-    txtDescription = document.createTextNode(Description);
-    boxStatus = document.createElement("div");
+    var header_Description = document.createElement("p");
+    var txtDescription = document.createTextNode(Description);
+    var boxStatus = document.createElement("div");
 
     // Structure implementation
 
@@ -165,12 +164,12 @@ function createHeadland(section_name, idDiv, idTitle, Description, status){
     header_Description.setAttribute("style", "margin: 10px 20px;");
     header_Description.className ="separated";
 
-    idDescription = idDiv + "Des";
+    var idDescription = idDiv + "Des";
     header_Description.id = idDescription;
 
     // Button edit implementation
 
-    id_button = section_name.concat("_Button");
+    var id_button = section_name.concat("_Button");
 
     // TODO it doesn't work when the AutoGenerateJSON is disabled
     //header_title.appendChild(expandButton);
@@ -180,7 +179,7 @@ function createHeadland(section_name, idDiv, idTitle, Description, status){
         " glyphicon-new-window ";
     expandButton.setAttribute("type", "button");
     expandButton.setAttribute("onclick", " window.location= '/"+section_name+"/';");
-    openTxt =document.createTextNode("Open");
+    var openTxt =document.createTextNode("Open");
     expandButton.appendChild(openTxt);
 
     buttonEdit.className = "btn btn-primary btn-sm pull-right glyphicon" +
@@ -197,36 +196,36 @@ function createHeadland(section_name, idDiv, idTitle, Description, status){
  * for don't disturve adn we can activate it with the new or edit buttons*/
 function createFormStructure(){
 
-    title =  document.getElementById("first_Title");
+    var title =  document.getElementById("first_Title");
     title.innerHTML= structure_config.host;
 
     // Check if exist or not a previous modal.
-    exist = document.getElementById("myModal");
+    var exist = document.getElementById("myModal");
 
     if(exist === null){
-        div_modalContent = document.createElement("div");
-        div_modalDialog = document.createElement("div");
-        div_modalInside = document.createElement("div");
-        div_modalHeader = document.createElement("div");
-        form_tag = document.createElement("form");
-        button_closeModal = document.createElement("button");
-        modalTitleContent = document.createElement("input");
-        modalRefreshLabel = document.createElement("label");
-        modalRefreshContent = document.createElement("input");
-        hiddenModalTitleContent = document.createElement("input");
-        div_modalBody = document.createElement("div");
-        div_modalFooter = document.createElement("div");
-        label_sectionDescription = document.createElement("label");
-        input_sectionDescription = document.createElement("input");
+        var div_modalContent = document.createElement("div");
+        var div_modalDialog = document.createElement("div");
+        var div_modalInside = document.createElement("div");
+        var div_modalHeader = document.createElement("div");
+        var form_tag = document.createElement("form");
+        var button_closeModal = document.createElement("button");
+        var modalTitleContent = document.createElement("input");
+        var modalRefreshLabel = document.createElement("label");
+        var modalRefreshContent = document.createElement("input");
+        var hiddenModalTitleContent = document.createElement("input");
+        var div_modalBody = document.createElement("div");
+        var div_modalFooter = document.createElement("div");
+        var label_sectionDescription = document.createElement("label");
+        var input_sectionDescription = document.createElement("input");
 
-        label_content = document.createElement("label");
-        textarea_content = document.createElement("textarea");
-        buttonDiscard = document.createElement("button");
-        textDiscard = document.createTextNode("Cancel");
-        buttonDelete = document.createElement("button");
-        textDelete = document.createTextNode("Delete");
-        buttonSave = document.createElement("button");
-        textSave = document.createTextNode("Save changes");
+        var label_content = document.createElement("label");
+        var textarea_content = document.createElement("textarea");
+        var buttonDiscard = document.createElement("button");
+        var textDiscard = document.createTextNode("Cancel");
+        var buttonDelete = document.createElement("button");
+        var textDelete = document.createTextNode("Delete");
+        var buttonSave = document.createElement("button");
+        var textSave = document.createTextNode("Save changes");
 
         document.getElementById("content").appendChild(form_tag);
 
@@ -258,10 +257,10 @@ function createFormStructure(){
         button_closeModal.setAttribute("aria-label","Close");
 
 
-        div_titleGroup = document.createElement("div");
+        var div_titleGroup = document.createElement("div");
         div_titleGroup.className = 'input-group pull-right'
 
-        div_titleSpan = document.createElement("span");
+        var div_titleSpan = document.createElement("span");
         div_titleSpan.className="input-group-addon";
         div_titleSpan.innerHTML = 'Title';
 
@@ -285,14 +284,14 @@ function createFormStructure(){
         modalRefreshContent.setAttribute('min', 0.1);
 
 
-        div_refreshgroup = document.createElement("div");
+        var div_refreshgroup = document.createElement("div");
         div_refreshgroup.className = 'input-group pull-right'
 
-        div_RefreshSpan1 = document.createElement("span");
+        var div_RefreshSpan1 = document.createElement("span");
         div_RefreshSpan1.className="input-group-addon";
         div_RefreshSpan1.innerHTML = 'Refresh Period';
 
-        div_RefreshSpan2 = document.createElement("span");
+        var div_RefreshSpan2 = document.createElement("span");
         div_RefreshSpan2.className="input-group-addon";
         div_RefreshSpan2.innerHTML = 'Seconds';
 
@@ -316,10 +315,10 @@ function createFormStructure(){
 
         //div_modalBody.appendChild(input_sectionDescription);
 
-        div_sectiongroup = document.createElement("div");
+        var div_sectiongroup = document.createElement("div");
         div_sectiongroup.className = 'input-group pull-right'
 
-        div_sectionSpan = document.createElement("span");
+        var div_sectionSpan = document.createElement("span");
         div_sectionSpan.className="input-group-addon";
         div_sectionSpan.innerHTML = 'Section Description';
 
@@ -340,10 +339,10 @@ function createFormStructure(){
         //label_content.appendChild(txt_content);
 
         //div_modalBody.appendChild(textarea_content);
-        div_attrGroup = document.createElement("div");
+        var div_attrGroup = document.createElement("div");
         div_attrGroup.className = 'input-group pull-right'
 
-        div_attrSpan = document.createElement("span");
+        var div_attrSpan = document.createElement("span");
         div_attrSpan.className="input-group-addon";
         div_attrSpan.innerHTML = 'Attributes';
 
@@ -403,11 +402,11 @@ will proceesed this data. When edit.php finish send and respons to save
 function, for print it and it inform to the user.*/
 
 function save(){
-    des = document.getElementById('description_label_modal').value;
-    section = document.getElementById('title_label_modal').value;
-    prev_section = document.getElementById('hidden_title_label_modal').value;
-    refresh_period = document.getElementById('refresh_content_modal').value;
-    content = document.getElementById('attrs_label_modal').value;
+    var des = document.getElementById('description_label_modal').value;
+    var section = document.getElementById('title_label_modal').value;
+    var prev_section = document.getElementById('hidden_title_label_modal').value;
+    var refresh_period = document.getElementById('refresh_content_modal').value;
+    var content = document.getElementById('attrs_label_modal').value;
     var conf = structure_config.config;
     // Delete the prev section name in the local configuration
 
@@ -423,7 +422,7 @@ function save(){
     conf[section].Data= content;
     conf[section].Description = des;
     conf[section].RefreshPeriod = refresh_period *1000
-    data = {};
+    var data = {};
     data.SaveNewConfig = conf;
     updater.socket.send(JSON.stringify(data));
     location.reload(true);
@@ -437,11 +436,11 @@ function deleteSection(){
 
     if(confirm("Are you sure you want to delete this Section?")) {
 
-        query = $('#formId').serialize();
-        section = document.getElementById('title_label_modal').value;
+        var query = $('#formId').serialize();
+        var section = document.getElementById('title_label_modal').value;
         var conf = structure_config.config;
         delete conf[section];
-        data = {};
+        var data = {};
         data.SaveNewConfig = conf;
         updater.socket.send(JSON.stringify(data));
         console.log('deleted!');
@@ -465,8 +464,8 @@ function cleanString(model){
 // Create the name of the label site with the attribute
 function createLabelName(Attr){
 
-    splittedAttr = Attr.split("/");
-    finalName = splittedAttr.pop();
+    var splittedAttr = Attr.split("/");
+    var finalName = splittedAttr.pop();
     finalName = finalName.replace(/\.hist/g,"");
     return finalName;
 }
@@ -474,44 +473,44 @@ function createLabelName(Attr){
 // Javascript function for create Table with attribut states
 
 function createTable(Attr, json, title_name, plot_type, hist_File){
-    low  = Attr.toLowerCase();
+    var low  = Attr.toLowerCase();
 
     //Default variables
     if ((json[low]) || (plot_type === true)) {
         if(plot_type === true){
-            modelo = cleanString(Attr) ;
+            var modelo = cleanString(Attr) ;
             // Text for Element th 1, contains the attribute name
-            label = document.createTextNode(createLabelName(Attr));
-            hist_NameFile = hist_File;
+            var label = document.createTextNode(createLabelName(Attr));
+            var hist_NameFile = hist_File;
             // Text for Element th 1, contains the attribute name
-            model = document.createTextNode(Attr);
+            var model = document.createTextNode(Attr);
         }else{
             Attr = low;
             // Model of the attribute to add
-            modelo = cleanString(json[Attr].full_name);
+            var modelo = cleanString(json[Attr].full_name);
             // Text for Element th 1, contains the attribute name
-            label = document.createTextNode(json[Attr].label);
-            model = document.createTextNode(json[Attr].full_name);
+            var label = document.createTextNode(json[Attr].label);
+            var model = document.createTextNode(json[Attr].full_name);
              // Text for Element th 1, contains the attribute name
         }
 
-        table = document.createElement("table");
+        var table = document.createElement("table");
         table.style.width = '100%';
 
-        contentTable = document.createElement("tr");
+        var contentTable = document.createElement("tr");
         contentTable.style.width = '100%';
 
-        table_forLabel = document.createElement("th");
+        var table_forLabel = document.createElement("th");
         table_forLabel.style.position = 'relative';
 
         table_forLabel.className = 'labelName row_elem';
-        table_forModalid = document.createElement("th");
+        var table_forModalid = document.createElement("th");
 
         table_forModalid.className =  'alert'
         table_forModalid.style.position = 'relative';
 
-        element_Br = document.createElement("br");
-        span_forModal = document.createElement("span");
+        var element_Br = document.createElement("br");
+        var span_forModal = document.createElement("span");
         span_forModal.className="grayAttrName";
         //Adding values
         document.getElementById(title_name).appendChild(table);
@@ -524,8 +523,8 @@ function createTable(Attr, json, title_name, plot_type, hist_File){
         span_forModal.style.color = "grey";
         span_forModal.style.fontSize = "0.75em";
         span_forModal.appendChild(model);
-        tit = cleanString(title_name);
-        id= tit+'_'+modelo;
+        var tit = cleanString(title_name);
+        id = tit+'_'+modelo;
         table_forModalid.id = id;
         table_forModalid.style.textAlign="center";
         // table_forModalid.style.width="70%";
@@ -546,8 +545,8 @@ function createTable(Attr, json, title_name, plot_type, hist_File){
 
             if (json[Attr].data_format === "SCALAR"){
                 model = Attr;
-                string = json[Attr].value;
-                color = json[Attr].quality;
+                var string = json[Attr].value;
+                var color = json[Attr].quality;
                 createStringOutput(id, string, color);
 
             /* Here is checked the data format and if it is "SPECTRUM",
@@ -567,7 +566,7 @@ function createTable(Attr, json, title_name, plot_type, hist_File){
         }
 
     } else if (Attr.length > 0) {
-        pre = document.createElement("pre");
+        var pre = document.createElement("pre");
         pre.innerHTML = Attr;
         pre.setAttribute("style","border: 0; margin: 10px;");
         document.getElementById(title_name).appendChild(pre);
@@ -579,8 +578,8 @@ function openPlot(model, value){
 
     Plot(model, value);
 
-    button = document.createElement("button");
-    text = document.createTextNode("Close Plot");
+    var button = document.createElement("button");
+    var text = document.createTextNode("Close Plot");
     button.className = "btn btn-primary";
     button.onclick = function(){closePlot(model, value);}; 
     button.id = "Close_plot";
@@ -593,8 +592,8 @@ function openPlot(model, value){
 
 function closePlot(model, value){
 
-    button = document.createElement("button");
-    text = document.createTextNode("View Plot");
+    var button = document.createElement("button");
+    var text = document.createTextNode("View Plot");
     button.className = "btn btn-primary";
     button.onclick = function(){openPlot(model, value);};
     button.id = "View_plot";
@@ -630,12 +629,12 @@ function createStringOutput(model, string, color){
 
 function createArrayOutput(model, value){
 
-        model_in_html = cleanString(model);
-        model_in_html_elem = $("#"+model_in_html);
+        var model_in_html = cleanString(model);
+        var model_in_html_elem = $("#"+model_in_html);
         if( model_in_html_elem.childElementCount !== 0){
 
             //var myNode = document.getElementById(model_in_html);
-            fc = model_in_html_elem.firstChild;//myNode.firstChild;
+            var fc = model_in_html_elem.firstChild;//myNode.firstChild;
 
             while( fc ) {
                 model_in_html_elem.removeChild( fc );
@@ -645,8 +644,8 @@ function createArrayOutput(model, value){
         }
             for (var i=0; i<value.length; i++) { 
 
-                list = document.createElement("li");
-                valor = document.createTextNode(value[i]);
+                var list = document.createElement("li");
+                var valor = document.createTextNode(value[i]);
                 list.className = "list-style";
                 list.appendChild(valor);
                 model_in_html_elem.append(list);
@@ -659,22 +658,22 @@ function createArrayOutput(model, value){
 // Javascript function for refresh
 function updateValues(jsondata){
     data = jsondata.data;
-    for (Attr in data){
+    for (var Attr in data){
         if(typeof data[Attr] !== "undefined" || data[Attr] === null){
 
             if ( (data[Attr]).data_format === "SCALAR" ){
-              model = cleanString(data[Attr].section) +'_'+ Attr;
+              var model = cleanString(data[Attr].section) +'_'+ Attr;
               model = model.replace(/\ /g,"");
 
-              string = data[Attr].value;
-              color = data[Attr].quality;
+              var string = data[Attr].value;
+              var color = data[Attr].quality;
               createStringOutput(model, string, color);
 
             }else if ( data[Attr].data_format === "SPECTRUM" ){
               model = data[Attr].full_name;
               model = cleanString(data[Attr].section) +'_'+ Attr;
               model = model.replace(/\ /g,"");
-              value = data[Attr].value;
+              var value = data[Attr].value;
               updatePlot(model, value);
             }
         }
@@ -688,8 +687,8 @@ function updateValues(jsondata){
 function Plot(classID, model){
     // Plot options configuration
 
-	var plotData = structure_config.data[model].value;
-        config = {
+	// var plotData = structure_config.data[model].value;
+        var config = {
             type: 'line',
             data: {
 
@@ -721,6 +720,7 @@ function Plot(classID, model){
                     text:model
                 },
                 tooltips: {
+		            enabled: false,
                     mode: 'index',
                     intersect: false
                 },
@@ -765,12 +765,12 @@ function updatePlot(id, data) {
     //$("#"+id+'_canvas').data;
     id = cleanString(id);  // Model of the beamline attribute to add
     var chart = myCharts[id+'_canvas'];
-    nums = [];
+    var nums = [];
     for (i = 0; i <= data.length; i++) nums.push(i);
     chart.data.labels = nums;
     chart.data.datasets[0].data = data;
     chart.update();
-    }
+}
 
 /* Add Values to Modal on open it */
 
@@ -778,24 +778,24 @@ function getOutput(sectionName) {
 
     document.getElementById("Delete").removeAttribute("disabled");
 
-    container_txtArea = document.getElementById('attrs_label_modal');
-    container_description = document.getElementById('description_label_modal');
-    container_modalTitle = document.getElementById('title_label_modal');
-    container_modalRefresh = document.getElementById('refresh_content_modal');
+    var container_txtArea = document.getElementById('attrs_label_modal');
+    var container_description = document.getElementById('description_label_modal');
+    var container_modalTitle = document.getElementById('title_label_modal');
+    var container_modalRefresh = document.getElementById('refresh_content_modal');
 
-    container_hiddenModalTitle = document.getElementById
+    var container_hiddenModalTitle = document.getElementById
     ('hidden_title_label_modal');
     container_hiddenModalTitle.value = sectionName;
     container_modalTitle.value = sectionName;
     container_description.value = structure_config.config[sectionName].Description;
-    aux = structure_config.config[sectionName].Data;
+    var ux = structure_config.config[sectionName].Data;
     /* pass to seconds instead milliseconds*/
-    refresh = structure_config.config[sectionName].RefreshPeriod;
-    refresh = refresh/1000.
-    container_modalRefresh.value =  refresh
+    var refresh = structure_config.config[sectionName].RefreshPeriod;
+    refresh = refresh/1000.;
+    container_modalRefresh.value =  refresh;
     container_txtArea.value = "";
-    for (i = 0; i < aux.length; i++) {
-        str = aux[i];
+    for (var i = 0; i < aux.length; i++) {
+        var str = aux[i];
         str = str.trim().split(/\s*,\s*/);
         container_txtArea.value += str + "\n";
     }
