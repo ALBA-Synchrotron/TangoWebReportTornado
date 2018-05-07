@@ -152,10 +152,10 @@ class TornadoManagement(object):
 
         self.started = False
         try:
-            tornado.ioloop.IOLoop.current().start()
             self.server = HTTPServer(application)
-            self.server.listen(self._webport)
             self.started = True
+            self.server.listen(self._webport)
+            tornado.ioloop.IOLoop.current().start()
         except Exception as e:
             print e
 
