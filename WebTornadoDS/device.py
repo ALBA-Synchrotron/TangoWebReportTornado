@@ -144,7 +144,7 @@ class WebTornadoDS4Impl(DynamicDS):
         self.url = socket.gethostname() + ':' + str(self.port)
         self._data_dict = {}
         self.extraJSONpath = ""
-        self.structureConfig = SortedDict()
+        self._structureConfig = SortedDict()
         #self.sem = threading.RLock()
         self.sem = threading.Semaphore()
         self.lock_read_structure_config = threading.Lock()
@@ -152,7 +152,7 @@ class WebTornadoDS4Impl(DynamicDS):
         self.last_refresh = {}
         self.last_refresh_section = 0
         self.acquisitionThread = None
-        
+        self.last_sections = []
         WebTornadoDS4Impl.init_device(self)
 
     # ------------------------------------------------------------------
@@ -244,9 +244,8 @@ class WebTornadoDS4Impl(DynamicDS):
     @Cached(depth=10,expire=3.)
     def getStructureConfig(self):
         try:
-            with self.lock_read_structure_config:
-                pr = 'StructureConfig'
-                p = self._db.get_device_property(self.get_name(), [pr])[pr][0]
+            pr = 'StructureConfig'
+            p = self._db.get_device_property(self.get_name(), [pr])[pr][0]
         except:
             p = '{}'
         json_acceptable_string = p.replace("'", "\"")
@@ -254,24 +253,34 @@ class WebTornadoDS4Impl(DynamicDS):
         return config
 
     def setStructureConfig(self, conf):
-        with self.lock_read_structure_config:
-            p = 'StructureConfig'
+        print 'setStructureConfig'
+        p = 'StructureConfig'
+        try:
             self._db.put_device_property(self.get_name(), {p: conf})
+        except Exception as e:
+            print 'Exception on setStructureConfig'
+            print e
+
         # Clean the last refresh dict to update ASAP
         self.last_refresh.clear()
+        self.force_acquisition = True
+
 
     def getSections(self):
-        if time.time() - self.last_refresh_section >= 1:
+
+        if time.time() - self.last_refresh_section >= 1 or self.force_acquisition:
             try:
                 pr = 'StructureConfig'
                 p = self._db.get_device_property(self.get_name(), [pr])[pr][0]
             except:
-                return []
+                return {}
             json_acceptable_string = p.replace("'", "\"")
             p = json.loads(json_acceptable_string)
-            self.structureConfig = p
+            self._structureConfig.clear()
+            self._structureConfig.update(p)
             self.last_refresh_section = time.time()
-        return self.structureConfig.keys()
+
+        return self._structureConfig
 
     def needJSON(self, force=False):
 
@@ -311,34 +320,64 @@ class WebTornadoDS4Impl(DynamicDS):
         self.info_stream('RUN -> Force Acquisition')
         self.force_acquisition = True
 
-    def checkacquire(self):
+    def checkAcquire(self):
         waiters = len(TangoDSSocketHandler.waiters)
         if self.needJSON() or waiters >= 1 or self.force_acquisition:
             sections = self.getSections()
-            for section in sections:
+            sections_keys = sections.keys()
+            for section in sections_keys:
                 try:
-                    refresh_period = self.structureConfig[section][
+                    refresh_period = self._structureConfig[section][
                         'RefreshPeriod']
                 except:
                     refresh_period = self.DEFAULT_REFRESH_PERIOD
+
+                try:
+                    full_name_section = sections[section]['fullname']
+                except:
+                    full_name_section = section
 
                 if section in self.last_refresh:
                     t = time.time() - self.last_refresh[section]
                     t *= 1000
                     if t >= refresh_period or self.force_acquisition:
                         self.info_stream("Refresh %r with %r" % (section, t))
-                        self.acquire(section)
+                        self.acquire(section, full_name=full_name_section)
                         self.last_refresh[section] = time.time()
                 else:
                     self.debug_stream('First refresh of %r' % section)
-                    self.acquire(section)
+                    self.acquire(section, full_name=full_name_section)
                     self.last_refresh[section] = time.time()
+
+
+            # if extraJSONpath is enabled, create a simple json file with
+            # the section active.
+            if self.extraJSONpath and (self.last_sections != sections_keys):
+                self.writeSectionsFile(sections)
+
+            self.last_sections = sections_keys
         else:
             pass
             #print "WEB Data file  generation Stopped!!!...."
         self.force_acquisition = False
 
-    def acquire(self, section):
+    def writeSectionsFile(self, sections):
+        file = 'sections.json'
+        sec = {}
+        sec['sections'] = sections
+        full_file = os.path.join(self.extraJSONpath, file)
+        if not os.path.exists(os.path.dirname(full_file)):
+            try:
+                os.makedirs(os.path.dirname(full_file))
+            except OSError as exc:  # Guard against race condition
+                raise
+        try:
+            json.dump(sec, open(full_file, 'w'), encoding='latin-1')
+        except Exception as e:
+            print e
+
+
+    def acquire(self, section, full_name=None):
         try:
             att_vals = []
             try:
@@ -348,6 +387,7 @@ class WebTornadoDS4Impl(DynamicDS):
                 jsondata['command'] = 'update'
                 jsondata['data'] = att_vals
                 jsondata['section'] = section
+                jsondata['section_full_name'] = full_name
                 utime = time.strftime("%Y-%m-%d %H:%M:%S",
                                       time.localtime())
                 jsondata['updatetime'] = utime
@@ -421,7 +461,6 @@ class WebTornadoDS4Impl(DynamicDS):
         # Send Package
         client.write_message(json_data)
         client_name = client.request.remote_ip
-
         self.debug_stream("Main data contents refresh in client " + str(
             client_name))
 
@@ -671,12 +710,12 @@ class WebTornadoDS4Impl(DynamicDS):
             time.time()).strftime('%Y-%m-%d %H:%M:%S')
         val['timestamp'] = time_now
         try:
-            rp = self.structureConfig[section]['RefreshPeriod']
+            rp = self._structureConfig[section]['RefreshPeriod']
             val['refreshperiod'] = rp
         except:
             val['refreshperiod'] = self.DEFAULT_REFRESH_PERIOD
         val['section'] = section
-        val['description'] = self.structureConfig[section]['Description']
+        val['description'] = self._structureConfig[section]['Description']
         return val
 
 
@@ -689,7 +728,7 @@ class acquisitionThread(threading.Thread):
     def run(self):
         while not self.stopped:
             time.sleep(0.1)
-            self.ds.checkacquire()
+            self.ds.checkAcquire()
 
     def stop(self):
         self.stopped = True
