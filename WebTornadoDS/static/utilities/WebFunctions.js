@@ -35,8 +35,8 @@ function createTableFromList(config, jsondata, key){
     var idDiv =  extractFileName(key);
     var idTitle = key.toUpperCase()+"id";
 
-    createIndex(key, idTitle);
-    createHeadland(key, idDiv, idTitle, config.Description, config.Status);
+    createIndex(key, idTitle, config);
+    createHeadland(key, idDiv, idTitle, config);
 
     var dataJson =  jsondata.data;
     var plot_type = false;
@@ -72,7 +72,7 @@ function extractFileName(Title){
 
 // This function create actuamticaly the index of the top.
 
-function createIndex(section_name, idTitle){
+function createIndex(section_name, idTitle, config){
 
     /*The var "exist" is used to check if the div with the structure of the index,
     it is created or not. If it is equal to 0, It will be created the estructure
@@ -97,7 +97,8 @@ function createIndex(section_name, idTitle){
     // Creation of the Index
     var li_Index = document.createElement("li");
     var a_link_Index = document.createElement("a");
-    var text = document.createTextNode(section_name);
+    var full_section_name = config.FullName;
+    var text = document.createTextNode(full_section_name);
     var txtForExpand = section_name + "_Down";
     document.getElementById("index").appendChild(li_Index);
     li_Index.appendChild(a_link_Index);
@@ -113,9 +114,18 @@ function createIndex(section_name, idTitle){
 site for the table. title_name and idTitle are the names for the differents html
 sections.*/
 
-function createHeadland(section_name, idDiv, idTitle, Description, status){
+function createHeadland(section_name, idDiv, idTitle, config){
 
     // Here are created the vars for the structure
+    var Description = config.Description;
+    var Status = config.Status;
+
+    if ('FullName' in config) {
+
+        var Section_full_name = config.FullName;
+    }else{
+        var Section_full_name = section_name;
+    }
 
     var div_headLand = document.createElement("div");
     var div_bttn_title = document.createElement("div");
@@ -123,7 +133,7 @@ function createHeadland(section_name, idDiv, idTitle, Description, status){
     var header_title = document.createElement("h3");
     var buttonDropdown = document.createElement("button");
     var span_title = document.createElement("span");
-    var model_titleTxt = document.createTextNode(section_name + " ");
+    var model_titleTxt = document.createTextNode(Section_full_name + " ");
 
     var buttonEdit = document.createElement("button");
     var txtEdit = document.createTextNode("Edit");
@@ -173,9 +183,7 @@ function createHeadland(section_name, idDiv, idTitle, Description, status){
     header_Description.setAttribute("display", "inline");
     header_Description.setAttribute("style", "margin: 10px 20px;");
     header_Description.className ="separated";
-
-    var idDescription = idDiv + "Des";
-    header_Description.id = idDescription;
+    header_Description.id = idDiv + "Des";
 
     // Button edit implementation
 
@@ -413,7 +421,7 @@ function, for print it and it inform to the user.*/
 
 function save(){
     var des = document.getElementById('description_label_modal').value;
-    var section = document.getElementById('title_label_modal').value;
+    var full_section = document.getElementById('title_label_modal').value;
     var prev_section = document.getElementById('hidden_title_label_modal').value;
     var refresh_period = document.getElementById('refresh_content_modal').value;
     var content = document.getElementById('attrs_label_modal').value;
@@ -421,6 +429,8 @@ function save(){
     // Delete the prev section name in the local configuration
 
     delete conf[prev_section];
+
+    var section = full_section.replace(/ /g,"_");
 
     conf[section] = {};
     // Filtering the entry attr text, split, lowercase, etc...
@@ -431,11 +441,17 @@ function save(){
     content = content.filter(Boolean);
     conf[section].Data= content;
     conf[section].Description = des;
-    conf[section].RefreshPeriod = refresh_period *1000
+    conf[section].RefreshPeriod = refresh_period *1000;
+    conf[section].FullName = full_section;
+    structure_config.config = conf;
+
     var data = {};
     data.SaveNewConfig = conf;
     updater.socket.send(JSON.stringify(data));
-    location.reload(true);
+    setTimeout(function(){location.reload(true) }, 300);
+
+    //location.reload(true);
+
 }
 
 /* DeletFile is used for delete one element, this function to call the Delete
@@ -482,7 +498,7 @@ function createLabelName(Attr){
 
 // Javascript function for create Table with attribut states
 
-function createTable(Attr, json, title_name, plot_type, hist_File){
+function createTable(Attr, json, section_name, plot_type, hist_File){
     var low  = Attr.toLowerCase();
 
     //Default variables
@@ -516,14 +532,14 @@ function createTable(Attr, json, title_name, plot_type, hist_File){
         table_forLabel.className = 'labelName row_elem';
         var table_forModalid = document.createElement("th");
 
-        table_forModalid.className =  'alert'
+        table_forModalid.className =  'alert';
         table_forModalid.style.position = 'relative';
 
         var element_Br = document.createElement("br");
         var span_forModal = document.createElement("span");
         span_forModal.className="grayAttrName";
         //Adding values
-        document.getElementById(title_name).appendChild(table);
+        document.getElementById(section_name).appendChild(table);
         table.className = "separated";
         table_forLabel.appendChild(label);
         table_forLabel.appendChild(element_Br);
@@ -533,7 +549,7 @@ function createTable(Attr, json, title_name, plot_type, hist_File){
         span_forModal.style.color = "grey";
         span_forModal.style.fontSize = "0.75em";
         span_forModal.appendChild(model);
-        var tit = cleanString(title_name);
+        var tit = cleanString(section_name);
         id = tit+'_'+modelo;
         table_forModalid.id = id;
         table_forModalid.style.textAlign="center";
@@ -579,7 +595,7 @@ function createTable(Attr, json, title_name, plot_type, hist_File){
         var pre = document.createElement("pre");
         pre.innerHTML = Attr;
         pre.setAttribute("style","border: 0; margin: 10px;");
-        document.getElementById(title_name).appendChild(pre);
+        document.getElementById(section_name).appendChild(pre);
     }
 }
 
@@ -796,9 +812,9 @@ function getOutput(sectionName) {
     var container_hiddenModalTitle = document.getElementById
     ('hidden_title_label_modal');
     container_hiddenModalTitle.value = sectionName;
-    container_modalTitle.value = sectionName;
+    container_modalTitle.value = structure_config.config[sectionName].FullName;
     container_description.value = structure_config.config[sectionName].Description;
-    var ux = structure_config.config[sectionName].Data;
+    var aux = structure_config.config[sectionName].Data;
     /* pass to seconds instead milliseconds*/
     var refresh = structure_config.config[sectionName].RefreshPeriod;
     refresh = refresh/1000.;
