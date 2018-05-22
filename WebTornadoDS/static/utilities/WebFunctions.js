@@ -648,7 +648,7 @@ function createStringOutput(model, string, color){
             state = "alert alert-danger"
     }
 
-    document.getElementById(modelo).className = state
+    document.getElementById(modelo).className = state;
 }
 
 /*The same as the StringOutput but this is do it for the arrays */
