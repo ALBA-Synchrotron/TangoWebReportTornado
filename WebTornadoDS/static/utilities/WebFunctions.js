@@ -6,9 +6,19 @@ function start(jsondata){
     structure_config = jsondata;
     createFormStructure();
 
-    for (var key in jsondata.config){
-        var data = jsondata.config[key];
-        createTableFromList(data, jsondata, key);
+    for (var section in jsondata.config){
+
+        // Check if has a default values:
+        if (!('FullName' in structure_config.config[section])){
+            structure_config.config[section].FullName = section;
+        }
+
+        if (!('RefreshPeriod' in structure_config.config[section])){
+            structure_config.config[section].RefreshPeriod = 3000;
+        }
+
+        var data = jsondata.config[section];
+        createTableFromList(data, jsondata, section);
     }
     jsondata = null;
 
