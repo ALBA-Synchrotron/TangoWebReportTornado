@@ -507,8 +507,8 @@ class WebTornadoDS4Impl(DynamicDS):
             self._data_dict[full_name] = {}
 
             try:
-                # Read the Current Value / config
-                dev_name = ft.get_dev_name(full_name,full=False)
+                dev_name = self.get_dev_name(full_name)
+
                 if dev_name == self.get_name():
                     a = ft.read_internal_attribute(self, full_name.split('/')[-1]).read()
                 else:
@@ -718,6 +718,13 @@ class WebTornadoDS4Impl(DynamicDS):
         val['description'] = self._structureConfig[section]['Description']
         return val
 
+    def get_dev_name(self, model):
+        if ':' in model:
+            model = model.split(':')[-1].split('/', 1)[-1]
+            model = model.split('#')[0].strip('/')
+        if model.count('/') > 2:
+            model = model.rsplit('/', 1)[0]
+        return model
 
 class acquisitionThread(threading.Thread):
     def __init__(self, ds):
