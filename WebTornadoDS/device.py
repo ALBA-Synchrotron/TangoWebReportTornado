@@ -21,7 +21,6 @@
 
 import PyTango
 import datetime
-import fandango as fn
 import fandango.tango as ft
 import json
 import math
@@ -30,10 +29,8 @@ import shutil
 import socket
 import threading
 import time
-
 from matplotlib import cm
 import numpy as np
-import taurus
 import tornado
 from PIL import Image
 
@@ -43,25 +40,25 @@ from tornado_app import TornadoManagement, TangoDSSocketHandler
 
 class WebTornadoDS(DynamicDSClass):
 
-    device_property_list = {
-                            'AutoGenerateJSON': [PyTango.DevBoolean,
-                                'Auto Generate JSON files for each section',
-                                    False],
-                            
+    device_property_list = {'AutoGenerateJSON': [PyTango.DevBoolean,
+                                                 'Auto Generate JSON files '
+                                                 'for each section', False],
+
                             'port': [PyTango.DevLong, 'Tornado Port', 8888],
-                            
-                            'WebFilesPath': [PyTango.DevString, 
-                                    'Location for main WebFiles', ""],
+
+                            'WebFilesPath': [PyTango.DevString,
+                                             'Location for main WebFiles', ""],
 
                             'extraJSONpath': [PyTango.DevString,
-                                    'extra location to save JSON '
-                                    'files', None],
-                            
-                            'structureConfig': [PyTango.DevString,
-                                    'internal register to save configuration, '
-                                    'do not edit it!', "{}"],
+                                              'Extra location to save JSON '
+                                              'files', None],
 
-    }
+                            'structureConfig': [PyTango.DevString,
+                                                'Internal register to save '
+                                                'configuration, do not edit!',
+                                                "{}"],
+
+                            }
     device_property_list.update(DynamicDSClass.device_property_list)
 
     cmd_list = {
@@ -79,17 +76,15 @@ class WebTornadoDS(DynamicDSClass):
     cmd_list.update(DynamicDSClass.cmd_list)
 
     attr_list = {
-                'Url':
-                    [[PyTango.ArgType.DevString,
-                      PyTango.AttrDataFormat.SCALAR,
-                      PyTango.AttrWriteType.READ]],
-                'extraJSONpath':
-                      [[PyTango.ArgType.DevString,
+                'Url': [[PyTango.ArgType.DevString,
                         PyTango.AttrDataFormat.SCALAR,
-                        PyTango.AttrWriteType.READ_WRITE],
-                        {'Memorized': 'True'}
-                       ],
-     }
+                        PyTango.AttrWriteType.READ]],
+                'extraJSONpath': [[PyTango.ArgType.DevString,
+                                   PyTango.AttrDataFormat.SCALAR,
+                                   PyTango.AttrWriteType.READ_WRITE],
+                                  {'Memorized': 'True'}
+                                  ],
+                }
 
     attr_list.update(DynamicDSClass.attr_list)
 
@@ -97,7 +92,6 @@ class WebTornadoDS(DynamicDSClass):
         super(WebTornadoDS, self).__init__(name)
         self.set_type("WebTornadoDS")
         print('In WebTornadoDS.__init__')
-
 
 
 class WebTornadoDS4Impl(DynamicDS):
@@ -145,7 +139,6 @@ class WebTornadoDS4Impl(DynamicDS):
         self._data_dict = {}
         self.extraJSONpath = ""
         self._structureConfig = SortedDict()
-        #self.sem = threading.RLock()
         self.sem = threading.Semaphore()
         self.lock_read_structure_config = threading.Lock()
         self.force_acquisition = False
@@ -241,7 +234,7 @@ class WebTornadoDS4Impl(DynamicDS):
         val = attr.get_write_value()
         self.extraJSONpath = val
 
-    @Cached(depth=10,expire=3.)
+    @Cached(depth=10, expire=3.)
     def getStructureConfig(self):
         try:
             pr = 'StructureConfig'
@@ -265,10 +258,10 @@ class WebTornadoDS4Impl(DynamicDS):
         self.last_refresh.clear()
         self.force_acquisition = True
 
-
     def getSections(self):
 
-        if time.time() - self.last_refresh_section >= 1 or self.force_acquisition:
+        if time.time() - self.last_refresh_section >= 1 or \
+                self.force_acquisition:
             try:
                 pr = 'StructureConfig'
                 p = self._db.get_device_property(self.get_name(), [pr])[pr][0]
@@ -345,10 +338,8 @@ class WebTornadoDS4Impl(DynamicDS):
                         self.acquire(section, full_name=full_name_section)
                         self.last_refresh[section] = time.time()
                 else:
-                    self.debug_stream('First refresh of %r' % section)
                     self.acquire(section, full_name=full_name_section)
                     self.last_refresh[section] = time.time()
-
 
             # if extraJSONpath is enabled, create a simple json file with
             # the section active.
@@ -358,7 +349,7 @@ class WebTornadoDS4Impl(DynamicDS):
             self.last_sections = sections_keys
         else:
             pass
-            #print "WEB Data file  generation Stopped!!!...."
+            # print "WEB Data file  generation Stopped!!!...."
         self.force_acquisition = False
 
     def writeSectionsFile(self, sections):
@@ -370,12 +361,12 @@ class WebTornadoDS4Impl(DynamicDS):
             try:
                 os.makedirs(os.path.dirname(full_file))
             except OSError as exc:  # Guard against race condition
+                self.debug(exc)
                 raise
         try:
             json.dump(sec, open(full_file, 'w'), encoding='latin-1')
         except Exception as e:
             print e
-
 
     def acquire(self, section, full_name=None):
         try:
@@ -438,16 +429,12 @@ class WebTornadoDS4Impl(DynamicDS):
         except Exception as e:
             self.error_stream('Exception in acquire method: %r' % e)
 
-
     def newClient(self, client):
         self.last_refresh = {}
         json_data = {}
 
         # Config Json as a config
         json_data['command'] = 'config'
-
-        # Send the section Confit at first time
-        #conf = self.getStructureConfig()
 
         # check if the property is empty
         # Read Current Attr Values
@@ -464,7 +451,6 @@ class WebTornadoDS4Impl(DynamicDS):
         self.debug_stream("Main data contents refresh in client " + str(
             client_name))
 
-    #@Cached(depth=10,expire=3.)
     def read_attributes_values(self, filter_by_section=None):
         # Check current config
         self.sem.acquire()
@@ -472,7 +458,7 @@ class WebTornadoDS4Impl(DynamicDS):
         recursive = False
         if not recursive:
             self._data_dict = SortedDict()
-        
+
         # Read the current configuration.
         config = self.getStructureConfig()
         sections_rel = {}
@@ -484,17 +470,16 @@ class WebTornadoDS4Impl(DynamicDS):
             if recursive:
                 self._data_dict = SortedDict()
                 for section in sections:
-                    d,config = self.read_attributes_values(section)
+                    d, config = self.read_attributes_values(section)
                     self._data_dict.update(d)
-                    return self._data_dict,config
-            
+                    return self._data_dict, config
         for section in sections:
-            
+
             if section not in config:
                 self.error_stream('ERROR: Section %r not found in config %r'
                                   % (section, config))
                 continue
-            
+
             for att in config[section]['Data']:
                 att = att.lower()
                 attrs.append(att)
@@ -510,19 +495,17 @@ class WebTornadoDS4Impl(DynamicDS):
                 dev_name = self.get_dev_name(full_name)
 
                 if dev_name == self.get_name():
-                    a = ft.read_internal_attribute(self, full_name.split('/')[-1]).read()
+                    attr = full_name.split('/')[-1]
+                    a = ft.read_internal_attribute(self, attr).read()
                 else:
                     a = ft.CachedAttributeProxy(full_name).read()
 
                 if a.data_format == PyTango.AttrDataFormat.IMAGE:
                     self._data_dict[full_name]['data_format'] = "IMAGE"
-                    # VALUE should be the image path
-                    # value = array2Image(value, 'jpeg')
-
                     try:
                         if self.AutoGenerateJSON:
-                            image_name = self.createImage(a.value,
-                                                          full_name, section)
+                            image_name = self.createImage(a.value, full_name,
+                                                          section)
                     except Exception as e:
                         self.error_stream('Exception on create Image, %r' % e)
                         # TODO: add default image in case of error
@@ -562,7 +545,7 @@ class WebTornadoDS4Impl(DynamicDS):
                 self._data_dict[full_name]['label'] = full_name
                 self._data_dict[full_name]['section'] = sections_rel[full_name]
                 self.error_stream('%s failed!' % full_name)
-                #print e
+                self.debug(e)
 
         # print "leaving in read_atttrbibutes_values"
         self.sem.release()
@@ -572,68 +555,15 @@ class WebTornadoDS4Impl(DynamicDS):
     def read_Url(self, the_att):
         the_att.set_value(self.url)
 
-    def attrs2dict(self, attrs, keep=False, log=False):
-        vals = SortedDict()
-        failed = []
-        devs = fn.dicts.defaultdict(list)
-        [devs[a.rsplit('/', 1)[0]].append(a) for a in attrs]
-
-        for d, attrs in sorted(devs.items()):
-            if not ft.check_device(d):
-
-                self.error_stream('%s device is not running!' % d)
-                for t in sorted(attrs):
-                    vals[t] = self.EMPTY_ATTR
-                    vals[t]['model'] = t
-                    vals[t]['label'] = vals[t]['name'] = t.rsplit('/')[-1]
-                    vals[t]['device'] = d
-            else:
-                for t in sorted(attrs):
-                    try:
-                        v = ft.export_attribute_to_dict(t)
-                        if log:
-                            print(v['model'], v['string'])
-                        if v['value'] is None:
-                            v['color'] = 'Grey'
-                            v['string'] = '...'
-                        elif fn.isSequence(v['string']):
-                            sep = '\n' if v[
-                                              'data_type'] == 'DevString' \
-                                else ','
-                            v['string'] = sep.join(v['string'])
-                        v['string'] = unicode(v['string'], 'latin-1')
-                        v['tooltip'] = v['model'] + ':' + v['string']
-                        try:
-                            json.dumps(v)
-                        except:
-                            if log:
-                                print('json.dumps(%s) failed' % t)
-                            if fn.isSequence(v['value']):
-                                v['value'] = list(v['value'])
-                            if fn.isBool(v['value']):
-                                v['value'] = bool(v['value'])
-                        vals[v['model']] = v
-                    except:
-                        if log:
-                            print('export_attribute_to_dict(%s) failed' % t)
-                            #
-                        vals[t] = None
-                        failed.append(t)
-        if failed:
-            print('%d failed attributes!: %s' % (len(failed),
-                                                 ' '.join(failed)))
-        return vals
-
     def attributes2json(self, folder, filename, attrs, keep=False, log=False):
         file = os.path.join(folder, filename)
 
-        if not fn.isMapping(attrs):
-            attrs = self.attrs2dict(attrs, keep=keep, log=log)
         try:
             if not os.path.exists(os.path.dirname(file)):
                 try:
                     os.makedirs(os.path.dirname(file))
-                except OSError as exc:  # Guard against race condition
+                except OSError as r:  # Guard against race condition
+                    self.debug(r)
                     raise
             try:
                 json.dump(attrs, open(file, 'w'), encoding='latin-1')
@@ -671,7 +601,7 @@ class WebTornadoDS4Impl(DynamicDS):
             image_name += ".jpg"
             # Save image in the server folder
             curr_dir = os.path.dirname(os.path.abspath(__file__))
-            img_path = os.path.join(curr_dir,self.JSON_FOLDER, section,
+            img_path = os.path.join(curr_dir, self.JSON_FOLDER, section,
                                     image_name)
         except Exception as e:
             self.error_stream('Exception on compose the image %r' % e)
@@ -694,7 +624,8 @@ class WebTornadoDS4Impl(DynamicDS):
 
                 img_path_ext = os.path.join(folder, image_name)
                 img.save(img_path_ext)
-                self.debug_stream('Saved %r image in %r' %(image_name, folder))
+                self.debug_stream('Saved %r image in %r' % (image_name,
+                                                            folder))
         except Exception as e:
 
             msg = "Error on write Image to extraJSONpath: %r, " \
@@ -725,6 +656,7 @@ class WebTornadoDS4Impl(DynamicDS):
         if model.count('/') > 2:
             model = model.rsplit('/', 1)[0]
         return model
+
 
 class acquisitionThread(threading.Thread):
     def __init__(self, ds):
