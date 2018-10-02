@@ -21,6 +21,7 @@
 
 import PyTango
 import datetime
+import fandango as fn
 import fandango.tango as ft
 import json
 import math
@@ -31,6 +32,7 @@ import threading
 import time
 from matplotlib import cm
 import numpy as np
+import taurus
 import tornado
 from PIL import Image
 
@@ -338,6 +340,7 @@ class WebTornadoDS4Impl(DynamicDS):
                         self.acquire(section, full_name=full_name_section)
                         self.last_refresh[section] = time.time()
                 else:
+                    self.debug_stream('First refresh of %r' % section)
                     self.acquire(section, full_name=full_name_section)
                     self.last_refresh[section] = time.time()
 
@@ -364,7 +367,7 @@ class WebTornadoDS4Impl(DynamicDS):
                 self.debug(exc)
                 raise
         try:
-            json.dump(sec, open(full_file, 'w'), encoding='latin-1')
+            json.dump(sec, open(full_file, 'w'))
         except Exception as e:
             print e
 
@@ -502,6 +505,9 @@ class WebTornadoDS4Impl(DynamicDS):
 
                 if a.data_format == PyTango.AttrDataFormat.IMAGE:
                     self._data_dict[full_name]['data_format'] = "IMAGE"
+                    # VALUE should be the image path
+                    # value = array2Image(value, 'jpeg')
+
                     try:
                         if self.AutoGenerateJSON:
                             image_name = self.createImage(a.value, full_name,
@@ -556,17 +562,22 @@ class WebTornadoDS4Impl(DynamicDS):
         the_att.set_value(self.url)
 
     def attributes2json(self, folder, filename, attrs, keep=False, log=False):
-        file = os.path.join(folder, filename)
+        data_file = os.path.join(folder, filename)
+        tmp_file = os.path.join(folder, 'temp.tmp')
 
+        if not fn.isMapping(attrs):
+            log = True
+            attrs = self.attrs2dict(attrs, keep=keep, log=log)
         try:
-            if not os.path.exists(os.path.dirname(file)):
+            if not os.path.exists(os.path.dirname(data_file)):
                 try:
-                    os.makedirs(os.path.dirname(file))
-                except OSError as r:  # Guard against race condition
-                    self.debug(r)
+                    os.makedirs(os.path.dirname(data_file))
+                except OSError as exc:  # Guard against race condition
                     raise
             try:
-                json.dump(attrs, open(file, 'w'), encoding='latin-1')
+                with open(tmp_file, 'w') as outfile:
+                    json.dump(attrs, outfile)
+                shutil.copyfile(tmp_file, data_file)
             except Exception as e:
                 print e
             html_file = os.path.join(folder, 'index.html')
@@ -578,7 +589,7 @@ class WebTornadoDS4Impl(DynamicDS):
                 print e
             # print('%d attributes written to %s'%(len(attrs),file))
         except Exception, e:
-            print('attributes2json(%s) failed!' % file)
+            print('attributes2json(%s) failed!' % data_file)
             failed = 0
             for k, v in sorted(attrs.items()):
                 try:
