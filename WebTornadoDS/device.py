@@ -32,9 +32,9 @@ import threading
 import time
 from matplotlib import cm
 import numpy as np
-import taurus
 import tornado
 from PIL import Image
+import Queue
 
 from fandango import DynamicDS, DynamicDSClass, Cached, SortedDict
 from tornado_app import TornadoManagement, TangoDSSocketHandler
@@ -145,9 +145,11 @@ class WebTornadoDS4Impl(DynamicDS):
         self.lock_read_structure_config = threading.Lock()
         self.force_acquisition = False
         self.last_refresh = {}
+        self.is_reading_section = []
         self.last_refresh_section = 0
         self.acquisitionThread = None
         self.last_sections = []
+        self.taskQueue = TaskQueue(self, num_workers=5)
         WebTornadoDS4Impl.init_device(self)
 
     # ------------------------------------------------------------------
@@ -204,6 +206,9 @@ class WebTornadoDS4Impl(DynamicDS):
     def Start(self):
         self.info_stream('In %s::Start()' % self.get_name())
         if not self.acquisitionThread or not self.acquisitionThread.is_alive():
+            self.force_acquisition = True
+
+            self.taskQueue.add_task(AcquireObject(self).read_attributes_values)
             self.acquisitionThread = acquisitionThread(self)
             self.acquisitionThread.start()
 
@@ -221,6 +226,7 @@ class WebTornadoDS4Impl(DynamicDS):
         self.tornado.stop()
         self.info_stream('Stop acquisition thread')
         self.acquisitionThread.stop()
+        self.taskQueue.stop()
 
     def GetAttributes(self):
         self.debug_stream(dir(self))
@@ -335,14 +341,18 @@ class WebTornadoDS4Impl(DynamicDS):
                 if section in self.last_refresh:
                     t = time.time() - self.last_refresh[section]
                     t *= 1000
-                    if t >= refresh_period or self.force_acquisition:
-                        self.info_stream("Refresh %r with %r" % (section, t))
-                        self.acquire(section, full_name=full_name_section)
-                        self.last_refresh[section] = time.time()
+                    if (t >= refresh_period or self.force_acquisition) and \
+                            section not in self.is_reading_section:
+                        self.is_reading_section.append(section)
+                        self.taskQueue.add_task(AcquireObject(self).acquire, section, full_name_section)
+                        #self.acquire(section, full_name=full_name_section)
                 else:
-                    self.debug_stream('First refresh of %r' % section)
-                    self.acquire(section, full_name=full_name_section)
-                    self.last_refresh[section] = time.time()
+                    if section not in self.is_reading_section:
+                        self.debug_stream('First refresh of %r' % section)
+                        self.is_reading_section.append(section)
+
+                        self.taskQueue.add_task(AcquireObject(self).acquire,
+                                                section, full_name_section)
 
             # if extraJSONpath is enabled, create a simple json file with
             # the section active.
@@ -371,67 +381,6 @@ class WebTornadoDS4Impl(DynamicDS):
         except Exception as e:
             print e
 
-    def acquire(self, section, full_name=None):
-        try:
-            att_vals = []
-            try:
-                att_vals, config = self.read_attributes_values(section)
-                jsondata = {}
-                jsondata['config'] = config
-                jsondata['command'] = 'update'
-                jsondata['data'] = att_vals
-                jsondata['section'] = section
-                jsondata['section_full_name'] = full_name
-                utime = time.strftime("%Y-%m-%d %H:%M:%S",
-                                      time.localtime())
-                jsondata['updatetime'] = utime
-            except Exception as e:
-                self.error_stream('Exception on complete the jsondata')
-                self.error_stram(e)
-
-            # check if the data is empty:
-            if len(att_vals) != 0:
-                if self.AutoGenerateJSON:
-                    try:
-                        dir_path = os.path.dirname(
-                            os.path.realpath(__file__))
-
-                        folder = os.path.join(dir_path,
-                                              self.JSON_FOLDER,
-                                              section)
-                        filename = "data.json"
-
-                        val = self.createJsonData(att_vals, section)
-                        self.debug_stream('Saving %r to %r' % (filename,
-                                                               folder))
-                        self.attributes2json(folder, filename, val)
-                    except Exception as e:
-                        self.debug_stream("Error on create JSON file in %r "
-                                          "\n %r" % (folder, e))
-                    try:
-                        if self.extraJSONpath:
-                            filename = "data.json"
-                            folder = os.path.join(self.extraJSONpath,
-                                                  section)
-                            val = self.createJsonData(att_vals,
-                                                      section)
-                            self.debug_stream('Saving %r in extraJSONpath: '
-                                              '%r' % (filename, folder))
-                            self.attributes2json(folder, filename,
-                                                 val)
-                    except Exception as e:
-                        msg = "Error on write extraJSONpath: %r" % e
-                        self.error_stream(msg)
-                # Sent generated data to clients
-                for waiter in TangoDSSocketHandler.waiters:
-                    try:
-                        waiter.write_message(jsondata)
-                    except:
-                        self.error_stream("Error sending message to "
-                                          "waiters...")
-        except Exception as e:
-            self.error_stream('Exception in acquire method: %r' % e)
-
     def newClient(self, client):
         self.last_refresh = {}
         json_data = {}
@@ -441,7 +390,7 @@ class WebTornadoDS4Impl(DynamicDS):
 
         # check if the property is empty
         # Read Current Attr Values
-        att_values, config = self.read_attributes_values()
+        att_values, config = AcquireObject(self).read_attributes_values()
         json_data['data'] = att_values
         json_data['host'] = tornado.httpserver.socket.gethostname()
         json_data['config'] = {}
@@ -453,109 +402,6 @@ class WebTornadoDS4Impl(DynamicDS):
         client_name = client.request.remote_ip
         self.debug_stream("Main data contents refresh in client " + str(
             client_name))
-
-    def read_attributes_values(self, filter_by_section=None):
-        # Check current config
-        self.sem.acquire()
-        attrs = []
-        recursive = False
-        if not recursive:
-            self._data_dict = SortedDict()
-
-        # Read the current configuration.
-        config = self.getStructureConfig()
-        sections_rel = {}
-        # Get Sections info
-        if filter_by_section:
-            sections = [filter_by_section]
-        else:
-            sections = config.keys()
-            if recursive:
-                self._data_dict = SortedDict()
-                for section in sections:
-                    d, config = self.read_attributes_values(section)
-                    self._data_dict.update(d)
-                    return self._data_dict, config
-        for section in sections:
-
-            if section not in config:
-                self.error_stream('ERROR: Section %r not found in config %r'
-                                  % (section, config))
-                continue
-
-            for att in config[section]['Data']:
-                att = att.lower()
-                attrs.append(att)
-                sections_rel[att] = section
-
-        # Add info in a dict for each attribute
-        for full_name in attrs:
-
-            full_name = str(full_name).lower()
-            self._data_dict[full_name] = {}
-
-            try:
-                dev_name = self.get_dev_name(full_name)
-
-                if dev_name == self.get_name():
-                    attr = full_name.split('/')[-1]
-                    a = ft.read_internal_attribute(self, attr).read()
-                else:
-                    a = ft.CachedAttributeProxy(full_name).read()
-
-                if a.data_format == PyTango.AttrDataFormat.IMAGE:
-                    self._data_dict[full_name]['data_format'] = "IMAGE"
-                    # VALUE should be the image path
-                    # value = array2Image(value, 'jpeg')
-
-                    try:
-                        if self.AutoGenerateJSON:
-                            image_name = self.createImage(a.value, full_name,
-                                                          section)
-                    except Exception as e:
-                        self.error_stream('Exception on create Image, %r' % e)
-                        # TODO: add default image in case of error
-                        image_name = 'template.jpg'
-                    value = image_name
-
-                elif ft.isSequence(a.value):
-                    if type(a.value) is tuple:
-                        value = list(a.value)
-                    else:
-                        value = a.value.tolist()
-                    self._data_dict[full_name]['data_format'] = "SPECTRUM"
-                else:
-                    # Check Tango States
-                    if a.value in PyTango.DevState.values:
-                        value = str(a.value)
-                    else:
-                        value = a.value
-                    self._data_dict[full_name]['data_format'] = "SCALAR"
-                    try:
-                        if math.isnan(value):
-                            value = '---'
-                    except:
-                        pass
-
-                self._data_dict[full_name]['value'] = value
-                self._data_dict[full_name]['quality'] = str(a.quality)
-                self._data_dict[full_name]['full_name'] = full_name
-                self._data_dict[full_name]['label'] = str(a.name)
-                self._data_dict[full_name]['section'] = sections_rel[full_name]
-            except Exception as e:
-                # return an error for this attribute in Exception case
-                self._data_dict[full_name]['data_format'] = "SCALAR"
-                self._data_dict[full_name]['value'] = "Attr not found"
-                self._data_dict[full_name]['quality'] = "ATTR_NOT_FOUND"
-                self._data_dict[full_name]['full_name'] = full_name
-                self._data_dict[full_name]['label'] = full_name
-                self._data_dict[full_name]['section'] = sections_rel[full_name]
-                self.error_stream('%s failed!' % full_name)
-                self.debug(e)
-
-        # print "leaving in read_atttrbibutes_values"
-        self.sem.release()
-        return self._data_dict, config
 
     @PyTango.DebugIt()
     def read_Url(self, the_att):
@@ -677,9 +523,227 @@ class acquisitionThread(threading.Thread):
 
     def run(self):
         while not self.stopped:
-            time.sleep(0.1)
+            time.sleep(1)
             self.ds.checkAcquire()
 
     def stop(self):
         self.stopped = True
         self.join()
+
+class TaskQueue(Queue.Queue):
+
+    def __init__(self, obj, num_workers=5):
+        Queue.Queue.__init__(self)
+        self.obj = obj
+        self.stop = False
+        self.num_workers = num_workers
+        self.start_workers()
+
+    def add_task(self, task, section=None, *args, **kwargs):
+        #self.obj.debug_stream('Adding new Task por section %r' %repr(section))
+        args = args or ()
+        kwargs = kwargs or {}
+        self.put((task, args, kwargs))
+
+    def start_workers(self):
+        for i in range(self.num_workers):
+            t = threading.Thread(target=self.worker)
+            t.daemon = True
+            t.start()
+
+    def worker(self):
+        while not self.stop:
+            item, args, kwargs = self.get()
+            item(*args, **kwargs)
+            self.task_done()
+
+    def stop(self):
+        self.stop = True
+
+
+
+class AcquireObject(object):
+    def __init__(self, ds, recursive=False):
+        self.ds = ds
+        if not recursive:
+            self._data_dict = SortedDict()
+
+    def acquire(self, section, full_name=None):
+
+        try:
+            t = time.time()
+            att_vals = []
+            try:
+                att_vals, config = self.read_attributes_values(section)
+                jsondata = {}
+                jsondata['config'] = config
+                jsondata['command'] = 'update'
+                jsondata['data'] = att_vals
+                jsondata['section'] = section
+                jsondata['section_full_name'] = full_name
+                utime = time.strftime("%Y-%m-%d %H:%M:%S",
+                                      time.localtime())
+                jsondata['updatetime'] = utime
+            except Exception as e:
+                print e
+                self.ds.error_stream('Exception on complete the jsondata')
+                self.ds.error_stream(str(e))
+
+            # check if the data is empty:
+            if len(att_vals) != 0:
+                if self.ds.AutoGenerateJSON:
+                    try:
+                        dir_path = os.path.dirname(
+                            os.path.realpath(__file__))
+
+                        folder = os.path.join(dir_path,
+                                              self.ds.JSON_FOLDER,
+                                              section)
+                        filename = "data.json"
+
+                        val = self.ds.createJsonData(att_vals, section)
+                        self.ds.debug_stream('Saving json in %r' % folder)
+                        self.ds.attributes2json(folder, filename, val)
+                    except Exception as e:
+                        self.ds.debug_stream("Error on create JSON file in %r "
+                                          "\n %r" % (folder, e))
+                    try:
+                        if self.ds.extraJSONpath:
+                            filename = "data.json"
+                            folder = os.path.join(self.ds.extraJSONpath,
+                                                  section)
+                            val = self.ds.createJsonData(att_vals,
+                                                      section)
+                            self.ds.debug_stream('Saving json in %r' % folder)
+                            self.ds.attributes2json(folder, filename, val)
+                    except Exception as e:
+                        msg = "Error on write extraJSONpath: %r" % e
+                        self.ds.error_stream(msg)
+                # Sent generated data to clients
+                for waiter in TangoDSSocketHandler.waiters:
+                    try:
+                        waiter.write_message(jsondata)
+                    except:
+                        self.ds.error_stream("Error sending message to "
+                                          "waiters...")
+
+            if section in self.ds.last_refresh:
+                t = time.time() - self.ds.last_refresh[section]
+            else:
+                t = time.time() - t
+            self.ds.info_stream("Refresh %r with %r seconds\n" % (section, t))
+            self.ds.last_refresh[section] = time.time()
+            self.ds.is_reading_section.remove(section)
+
+
+        except Exception as e:
+            self.ds.error_stream('Exception in acquire method: %r' % e)
+
+    def read_attributes_values(self, filter_by_section=None):
+        # Check current config
+        attrs = []
+        t0 = time.time()
+        # Read the current configuration.
+        config = self.ds.getStructureConfig()
+        sections_rel = {}
+        # Get Sections info
+        if filter_by_section is not None:
+            sections = [filter_by_section]
+        else:
+            sections = config.keys()
+            for section in sections:
+                d, config = self.read_attributes_values(section)
+                self._data_dict.update(d)
+            return self._data_dict, config
+
+        for section in sections:
+
+            if section not in config:
+                self.ds.error_stream('ERROR: Section %r not found in config %r'
+                                  % (section, config))
+                continue
+
+            for att in config[section]['Data']:
+                att = att.lower()
+                attrs.append(att)
+                sections_rel[att] = section
+        _data_dict = {}
+        internal_attrs = []
+        external_attrs = []
+        # Add info in a dict for each attribute
+        for full_name in attrs:
+
+            full_name = str(full_name).lower()
+            _data_dict[full_name] = {}
+
+            try:
+                dev_name = self.ds.get_dev_name(full_name)
+
+                if dev_name == self.ds.get_name():
+                    attr = full_name.split('/')[-1]
+                    a = ft.read_internal_attribute(self, attr).read()
+                    internal_attrs.append(a)
+                else:
+                   # a = ft.CachedAttributeProxy(full_name,
+                   # use_gevent=True).read()
+                    a = ft.CachedAttributeProxy(full_name).read()
+                    #a = fn.EventSource(full_name,
+                    #                  enablePolling=10000,
+                    #                  tango_asynch=True,
+                    #                  persistent=True)
+                    external_attrs.append(a)
+
+
+                if a.data_format == PyTango.AttrDataFormat.IMAGE:
+                    _data_dict[full_name]['data_format'] = "IMAGE"
+                    # VALUE should be the image path
+                    # value = array2Image(value, 'jpeg')
+
+                    try:
+                        if self.ds.AutoGenerateJSON:
+                            image_name = self.ds.createImage(a.value,
+                                                             full_name,
+                                                          section)
+                    except Exception as e:
+                        self.ds.error_stream('Exception on create Image, '
+                                            '%r' % e)
+                        # TODO: add default image in case of error
+                        image_name = 'template.jpg'
+                    value = image_name
+
+                elif ft.isSequence(a.value):
+                    if type(a.value) is tuple:
+                        value = list(a.value)
+                    else:
+                        value = a.value.tolist()
+                    _data_dict[full_name]['data_format'] = "SPECTRUM"
+                else:
+                    # Check Tango States
+                    if a.value in PyTango.DevState.values:
+                        value = str(a.value)
+                    else:
+                        value = a.value
+                    _data_dict[full_name]['data_format'] = "SCALAR"
+                    try:
+                        if math.isnan(value):
+                            value = '---'
+                    except:
+                        pass
+
+                _data_dict[full_name]['value'] = value
+                _data_dict[full_name]['quality'] = str(a.quality)
+                _data_dict[full_name]['full_name'] = full_name
+                _data_dict[full_name]['label'] = str(a.name)
+                _data_dict[full_name]['section'] = sections_rel[full_name]
+            except Exception as e:
+                # return an error for this attribute in Exception case
+                _data_dict[full_name]['data_format'] = "SCALAR"
+                _data_dict[full_name]['value'] = "Attr not found"
+                _data_dict[full_name]['quality'] = "ATTR_NOT_FOUND"
+                _data_dict[full_name]['full_name'] = full_name
+                _data_dict[full_name]['label'] = full_name
+                _data_dict[full_name]['section'] = sections_rel[full_name]
+                self.ds.error_stream('%s failed!' % full_name)
+                self.ds.error(e)
+
+        return _data_dict, config
