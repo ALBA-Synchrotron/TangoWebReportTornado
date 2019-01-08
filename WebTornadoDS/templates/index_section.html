@@ -168,7 +168,8 @@ crossorigin="anonymous"
                 if (!structureDone){
                     createHeadland(title, title, 'test', description,'status');
 
-                    for (var v in attr) {
+                    for (i=0;i<attr.length;i++) {
+                        v = attr[i];
                         plot_type = false;
 
                         if( val[v].data_format !== "SCALAR" ){
