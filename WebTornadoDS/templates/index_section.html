@@ -159,14 +159,16 @@ crossorigin="anonymous"
                 timestamp = data['timestamp'];
                 description = data['description'];
                 refresh = data['refresh_period'];
-                    refresh = 3000;
+                var attr = Object.keys(x);
+                attr.sort();
+
 
 
 
                 if (!structureDone){
                     createHeadland(title, title, 'test', description,'status');
 
-                    for (var v in val) {
+                    for (var v in attr) {
                         plot_type = false;
 
                         if( val[v].data_format !== "SCALAR" ){

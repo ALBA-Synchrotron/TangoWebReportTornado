@@ -242,6 +242,7 @@ class WebTornadoDS4Impl(DynamicDS):
         val = attr.get_write_value()
         self.extraJSONpath = val
 
+
     @Cached(depth=10, expire=3.)
     def getStructureConfig(self):
         try:
@@ -254,7 +255,6 @@ class WebTornadoDS4Impl(DynamicDS):
         return config
 
     def setStructureConfig(self, conf):
-        print 'setStructureConfig'
         p = 'StructureConfig'
         try:
             self._db.put_device_property(self.get_name(), {p: conf})
@@ -326,6 +326,7 @@ class WebTornadoDS4Impl(DynamicDS):
         if self.needJSON() or waiters >= 1 or self.force_acquisition:
             sections = self.getSections()
             sections_keys = sections.keys()
+
             for section in sections_keys:
                 try:
                     refresh_period = self._structureConfig[section][
