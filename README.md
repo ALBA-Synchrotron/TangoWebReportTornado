@@ -12,9 +12,12 @@ PROPERTIES
 
 Port (8888): Defines the port to Tornado access
 
-AutoGenerateJSON: (True) or False, define if is necessary to create a JSON files 
-with the last data.
-The JSON files will be available in http://HOST/JSONfiles/(section).json
+AutoGenerateJSON: True or (False), define if is necessary to create a JSON files 
+with the last data. 
+* if False, data is updated only when a client connects to the server:port 
+* if True, data is generated continuously
+
+The JSON files will be available in http://HOST/(section).json
 
 extraJSONpath: empty by default, an extra path to save the Json/Images generated.
 
