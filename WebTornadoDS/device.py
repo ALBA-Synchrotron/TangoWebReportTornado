@@ -248,10 +248,11 @@ class WebTornadoDS4Impl(DynamicDS):
         try:
             pr = 'StructureConfig'
             p = self._db.get_device_property(self.get_name(), [pr])[pr][0]
+            p = p.replace("'", "\"")
         except:
             p = '{}'
-        json_acceptable_string = p.replace("'", "\"")
-        config = json.loads(json_acceptable_string)
+
+        config = json.loads(p)
         return config
 
     def setStructureConfig(self, conf):
@@ -382,6 +383,15 @@ class WebTornadoDS4Impl(DynamicDS):
         except Exception as e:
             print e
 
+        index_sections_file = os.path.join(self.extraJSONpath, 'index.html')
+        dirname, filename = os.path.split(os.path.abspath(__file__))
+        f = os.path.join(dirname, 'templates/index_of_sections.html')
+        print "copy %r to %r\n\n" %(f, index_sections_file)
+        try:
+            shutil.copy(f, index_sections_file)
+        except Exception as e:
+            print e
+
     def newClient(self, client):
         self.last_refresh = {}
         json_data = {}
@@ -429,7 +439,7 @@ class WebTornadoDS4Impl(DynamicDS):
                 print e
             html_file = os.path.join(folder, 'index.html')
             dirname, filename = os.path.split(os.path.abspath(__file__))
-            f = os.path.join(dirname, 'templates/index_section.html')
+            f = os.path.join(dirname, 'templates/index_single_section.html')
             try:
                 shutil.copy(f, html_file)
             except Exception as e:

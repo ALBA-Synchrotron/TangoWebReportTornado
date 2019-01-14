@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.1/jquery.min.js"></script>
+    <link rel="stylesheet"
+      href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" integrity="sha384-1q8mTJOASx8j1Au+a5WDVnPi2lkFfwwEAa8hDDdjZlpLegxhjVME1fgjWPGmkzs7"
+crossorigin="anonymous"/>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js"></script>
+
+    <script src="https://www.chartjs.org/dist/2.7.1/Chart.bundle.js"></script>
+    <script src="https://www.chartjs.org/samples/latest/utils.js"></script>
+
+
+</head>
+<body>
+    <div id= "content" class="container">
+        <div class="header clearfix">
+            <nav id="main_menu" style="margin-top: 20px;">
+                    <ul class="nav nav-pills pull-right">
+
+            </ul>
+            </nav>
+            <div class="page-header" id="headerPage">
+                    <h1 class="text-muted" id="first_Title" style="
+                    text-align: center;
+"> </h1>
+
+            </div>
+        </div>
+    </div>
+</body>
+
+<script>
+
+    $(document).ready(function() {
+        $.ajaxSetup({ cache: false });
+
+        createFormStructure();
+        readJSON();
+
+
+    });
+
+    function createFormStructure() {
+
+        title_class = document.getElementById("first_Title");
+
+
+    }
+
+    function readJSON(){
+        try{
+
+
+            $.getJSON("./sections.json", function(data) {
+
+                var sections = data['sections'];
+                //title_class.textContent= title;
+                var attr = Object.keys(sections);
+                attr.sort();
+
+                for (i=0;i<attr.length;i++) {
+                    var key = attr[i];
+                    var sec = sections[key];
+                    var raw_name = key;
+                    var full_name = sec.FullName;
+                    var description = sec.Description;
+                    createIndex(full_name, raw_name, description);
+
+                    }
+            });
+        }catch(err) {
+              console.log(err);
+        }
+
+    }
+
+
+function createIndex(full_name, idTitle, description){
+
+    var exist = document.getElementsByClassName("jumbotron").length;
+
+    if(exist === 0){
+        // Creation the structure of the Index
+        var divIndex_Structure_Content = document.createElement("div");
+        var title_jumbo = document.createElement("h2");
+        var divIndex_List = document.createElement("ul");
+        var ul_Index = document.createElement("ul");
+
+        document.getElementById("content").appendChild(divIndex_Structure_Content);
+        title_jumbo.appendChild(document.createTextNode("Available Reports:"));
+        divIndex_Structure_Content.className = "jumbotron";
+        divIndex_Structure_Content.appendChild(title_jumbo);
+        divIndex_Structure_Content.appendChild(divIndex_List);
+        divIndex_List.className = "list-group";
+        //divIndex_List.appendChild(ul_Index);
+        divIndex_List.id = "index";
+    }
+
+    // Creation of the Index
+    var li_Index = document.createElement("li");
+    var a_link_Index = document.createElement("a");
+    var full_section_name = full_name;
+    var text = document.createTextNode(full_section_name + ' - ' + description);
+    document.getElementById("index").appendChild(li_Index);
+    li_Index.appendChild(a_link_Index);
+    li_Index.className = "list-group-item";
+    a_link_Index.setAttribute("href", idTitle );
+    a_link_Index.appendChild(text);
+
+
+}
+
+</script>
