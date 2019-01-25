@@ -1,0 +1,9 @@
+#!/usr/bin/env python
+import os
+
+os.environ['MPLCONFIGDIR']='/tmp'
+
+import sys
+sys.path.append('/homelocal/sicilia/ds/python')
+import WebTornadoDS.server
+WebTornadoDS.server.run()
