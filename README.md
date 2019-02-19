@@ -1,25 +1,43 @@
-TornadoWebReportsTango Device Server
-==================================
+WebTornado Device Server
+========================
 
 Author(s): Daniel Roldan Ballesteros (droldan@cells.es)
 
-Description: Tango device server to manage a tornado Web Server and generate
- web reports from Tango Attributes.
- Also, allows to generate a Json files/images with the tango attrs defined in a specifing path or url.
+Description: The WebTornadoDS Tango Device Server embeds a Tornado web
+application into a Tango device.
+
+When running on a given HOST; it will publish a webpage at
+http://HOST:PORT showing the values of the configured attributes
+
+These values are stored in .json files; that can be generated in a
+different machine from the  one publishing the data.
+
 
 PROPERTIES
 ----------
 
-Port (8888): Defines the port to Tornado access
+***Port***: (8888) Defines the port to Tornado access
 
-AutoGenerateJSON: True or (False), define if is necessary to create a JSON files 
-with the last data. 
-* if False, data is updated only when a client connects to the server:port 
-* if True, data is generated continuously
+***AutoGenerateJSON***: True or (False), define if is necessary to create a
+JSON files with the last data.
+
+- If *False*, data is updated only when a client connects to the
+server:port
+- If *True*, data is generated continuously
 
 The JSON files will be available in http://HOST/(section).json
 
-extraJSONpath: empty by default, an extra path to save the Json/Images generated.
+***extraJSONpath***: empty by default, an extra path to save the
+JSON/Images generated, it can be used to copy the generated files to
+an external server via NFS
 
-StructureConfig (DO NOT TOUCH) is the web report 'configuration' saved at 
-tango DDBB, so use internally, it is modified on save the configuration via web.
+Even if *extraJSONpath* has no value, the JSON files will be stored in
+the device server folder and available in
+http://HOST/JSONfiles/(section).json
+
+***WebFilesPath*** : location for custom html files (machinestatus.html path)
+
+
+***StructureConfig***: **(DO NOT TOUCH)** It is the web report
+'*configuration*' saved at tango DB, so use internally, it is modified on save the
+configuration via web.
